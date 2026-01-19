@@ -32,6 +32,21 @@
         #pocketOverlay.active {
             display: flex;
         }
+
+        /* List Modal Overlay */
+        #listOverlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(17, 24, 39, 0.95); /* bg-gray-900 with opacity */
+            z-index: 50;
+        }
+        #listOverlay.active {
+            display: block;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-4">
@@ -52,8 +67,11 @@
         <div class="w-full bg-gray-700 rounded-full h-2.5 mb-4">
             <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
         </div>
-        <div class="text-center text-sm text-gray-400 mb-6">
-            Phrase: <span id="currentIndex">1</span> / <span id="totalCount">200</span>
+        <div class="text-center text-sm text-gray-400 mb-6 flex justify-between items-center px-2">
+            <span>Phrase: <span id="currentIndex">1</span> / <span id="totalCount">200</span></span>
+            <button onclick="toggleListModal()" class="text-blue-400 hover:text-blue-300 underline text-xs">
+                <i class="fas fa-list mr-1"></i>一覧を見る
+            </button>
         </div>
 
         <!-- Phrase Card -->
@@ -71,7 +89,7 @@
 
             <!-- Voice Listening Indicator -->
             <div id="listeningIndicator" class="hidden mt-6 animate-pulse text-red-400 font-bold">
-                <i class="fas fa-microphone mr-2"></i>Listening... ("OK" / "次")
+                <i class="fas fa-microphone mr-2"></i>判定中... (2秒)
             </div>
         </div>
 
@@ -92,7 +110,18 @@
 
         <!-- Settings / Toggles -->
         <div class="mt-6 flex flex-col gap-4 bg-gray-800 p-4 rounded-lg">
-            <div class="flex justify-between items-center">
+            <!-- Speed Control -->
+            <div class="flex flex-col gap-2 mb-2">
+                <label for="speedRange" class="text-sm font-medium text-gray-300 flex justify-between">
+                    <span>話すスピード</span>
+                    <span id="speedValue" class="text-blue-400">1.0x</span>
+                </label>
+                <input type="range" id="speedRange" min="1.0" max="2.0" step="0.1" value="1.0" 
+                       class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                       oninput="updateSpeed(this.value)">
+            </div>
+
+            <div class="flex justify-between items-center border-t border-gray-700 pt-4">
                 <div class="flex items-center">
                     <input type="checkbox" id="reviewMode" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-600 ring-offset-gray-800 bg-gray-700 border-gray-600" onchange="toggleReviewMode()">
                     <label for="reviewMode" class="ml-2 text-sm font-medium text-gray-300">復習モード (×のみ)</label>
@@ -122,17 +151,28 @@
         </div>
     </div>
 
+    <!-- List Modal Overlay -->
+    <div id="listOverlay">
+        <div class="flex flex-col h-full max-w-md mx-auto bg-gray-800 shadow-xl">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-900">
+                <h2 class="text-lg font-bold text-white"><i class="fas fa-list mr-2"></i>フレーズ一覧</h2>
+                <button onclick="toggleListModal()" class="text-gray-400 hover:text-white p-2">
+                    <i class="fas fa-times fa-lg"></i>
+                </button>
+            </div>
+            <div id="listContent" class="flex-grow overflow-y-auto p-4 space-y-2 pb-20">
+                <!-- List items will be injected here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Silent Audio for Background Keep-alive -->
     <audio id="silentAudio" loop playsinline>
         <source src="data:audio/mp3;base64,SUQzBAAAAAABAFRYWFgAAAASAAADbWFqb3JfYnJhbmQAbXA0MgBUWFhYAAAAEQAAA21pbm9yX3ZlcnNpb24AMABUWFhYAAAAHAAAA2NvbXBhdGlibGVfYnJhbmRzAGlzb21tcDQyAFRTU0UAAAAOAAADbGF2ZjU4LjQ1LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAJAAABIAAHCQkODhQUGRkeHiIiKCguLjw8QkJHR01NUlJXV11dYmJoaGt7e4SEiYmOjpmZoaGmpq2tsrK3t7u7wMDGxs7O1Nba2t7e5OTp6e/v8vL39/v7////AAAAATFjYXZjAAAAAAAAAAAAAf//AAABIAAAAAAA//7UAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZnZyZwAAABAAAAAJAAABIAAAJAwAAAAAAAAD/wAA//7UGRn/AAAGkAAAAIAAANIAAAACA2ZtcDQAAAAAZGF0YQAAAAEAAAAA//7UGRn/AAAGkAAAAIAAANIAAAACAAA=" type="audio/mpeg">
     </audio>
 
     <script>
-        // --- Data: 200 Travel Phrases (Truncated for brevity in this view, implies full list) ---
-        // Full list from original request is preserved in logic, simplified here for file size if needed, 
-        // but assuming the original full list is desired, I will include a representative subset or the full list logic.
-        // For this file generation, I will include the full list logic variable reference.
-        
+        // --- Data: 200 Travel Phrases ---
         const rawPhrases = [
             { ja: "チェックインをお願いします。", en: "Check-in, please." },
             { ja: "予約しています。", en: "I have a reservation." },
@@ -343,6 +383,7 @@
         let processingVoice = false;
         let wakeLock = null;
         let recognition = null;
+        let speechRate = 1.0;
         const silentAudio = document.getElementById('silentAudio');
 
         // --- Setup Voice Recognition ---
@@ -361,10 +402,7 @@
 
             recognition.onerror = (event) => {
                 log(`Voice Error: ${event.error}`);
-                if(isPlaying && !processingVoice) {
-                    // If error (e.g., no speech), treat as timeout/next after a short delay
-                    setTimeout(() => handleUserChoice(false, true), 1000);
-                }
+                // Error handling handled by timeout logic
             };
             
             recognition.onend = () => {
@@ -380,7 +418,7 @@
             const btn = document.getElementById('toggleBtn');
             if (isPlaying) {
                 stopLearning();
-                btn.innerHTML = '<i class="fas fa-play mr-2"></i>再開する';
+                btn.innerHTML = '<i class="fas fa-play mr-2"></i>学習スタート';
                 btn.classList.replace('bg-red-600', 'bg-blue-600');
                 btn.classList.replace('hover:bg-red-500', 'hover:bg-blue-500');
             } else {
@@ -446,6 +484,42 @@
             log('Pocket Mode Disabled');
         }
 
+        // --- Settings Logic ---
+        function updateSpeed(val) {
+            speechRate = parseFloat(val);
+            document.getElementById('speedValue').innerText = speechRate.toFixed(1) + 'x';
+        }
+
+        // --- List Modal Logic ---
+        function toggleListModal() {
+            const overlay = document.getElementById('listOverlay');
+            const isActive = overlay.classList.toggle('active');
+            if (isActive) {
+                renderList();
+            }
+        }
+
+        function renderList() {
+            const listContent = document.getElementById('listContent');
+            listContent.innerHTML = '';
+            
+            phrases.forEach((p, i) => {
+                const item = document.createElement('div');
+                item.className = `p-3 rounded-lg border ${p.correct ? 'bg-gray-700 border-green-700' : 'bg-gray-800 border-gray-700'}`;
+                item.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="text-sm text-gray-400 mb-1">No.${i + 1}</div>
+                        <div class="${p.correct ? 'text-green-500' : 'text-red-500'} font-bold text-lg">
+                            ${p.correct ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-times-circle"></i>'}
+                        </div>
+                    </div>
+                    <div class="font-bold text-white mb-1">${p.ja}</div>
+                    <div class="text-sm text-yellow-400">${p.en}</div>
+                `;
+                listContent.appendChild(item);
+            });
+        }
+
         function startLearning() {
             isPlaying = true;
             // Filter list based on mode
@@ -488,18 +562,18 @@
             updateUI(currentPhrase);
 
             // 1. Speak Japanese
-            await speak(currentPhrase.ja, 'ja-JP');
+            await speak(currentPhrase.ja, 'ja-JP', speechRate);
             
             if (!isPlaying) return;
 
-            // 2. Wait 3 seconds
-            await new Promise(r => setTimeout(r, 3000));
+            // 2. Wait 2 seconds (Modified from 3s)
+            await new Promise(r => setTimeout(r, 2000));
 
             if (!isPlaying) return;
 
             // 3. Show & Speak English
             revealEnglish();
-            await speak(currentPhrase.en, 'en-US');
+            await speak(currentPhrase.en, 'en-US', speechRate);
 
             if (!isPlaying) return;
 
@@ -510,7 +584,7 @@
         function startListening() {
             processingVoice = false;
             document.getElementById('listeningIndicator').classList.remove('hidden');
-            document.getElementById('voiceStatus').innerText = "聞いています...";
+            document.getElementById('voiceStatus').innerText = "判定待ち(2秒)...";
             
             if(recognition) {
                 try {
@@ -520,16 +594,20 @@
                 }
             }
             
-            // Safety timeout
+            // Strict timeout: 2 seconds
+            // If no "OK" received within 2s, mark as incorrect/next
             setTimeout(() => {
                 if(isPlaying && !processingVoice && document.getElementById('listeningIndicator').classList.contains('hidden') === false) {
-                   log("Voice timeout - auto skipping");
-                   handleUserChoice(false, true); // Auto-skip as 'next'
+                   log("Time up (2s) - Marking incorrect");
+                   handleUserChoice(false, true); // Auto-skip as 'next/incorrect'
                 }
-            }, 6000);
+            }, 2000);
         }
 
         function handleVoiceCommand(text) {
+            // Only handle if listening
+            if(document.getElementById('listeningIndicator').classList.contains('hidden')) return;
+
             processingVoice = true;
             if(recognition) recognition.stop();
             document.getElementById('listeningIndicator').classList.add('hidden');
@@ -540,6 +618,7 @@
             if (positives.some(v => text.includes(v))) {
                 handleUserChoice(true);
             } else {
+                // Any text other than positive is considered Incorrect/Next in this strict mode
                 handleUserChoice(false);
             }
         }
