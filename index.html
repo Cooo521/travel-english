@@ -2,16 +2,36 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Travel English Audio Learner</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; touch-action: manipulation; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
         .active-card { transform: scale(1.02); border-color: #3b82f6; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3); }
         /* Wake Lock indicator style */
         .wake-lock-active { color: #10b981; }
         .wake-lock-inactive { color: #ef4444; }
+        
+        /* Pocket Mode Overlay */
+        #pocketOverlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            z-index: 9999;
+            color: #333;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            touch-action: none; /* Prevent scrolling/zooming */
+        }
+        #pocketOverlay.active {
+            display: flex;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-4">
@@ -37,7 +57,7 @@
         </div>
 
         <!-- Phrase Card -->
-        <div id="card" class="bg-gray-800 p-8 rounded-2xl border-2 border-gray-700 flex flex-col items-center justify-center min-h-[300px] transition-all duration-300">
+        <div id="card" class="bg-gray-800 p-8 rounded-2xl border-2 border-gray-700 flex flex-col items-center justify-center min-h-[300px] transition-all duration-300 relative overflow-hidden">
             <div id="japaneseText" class="text-2xl font-bold mb-8 text-center text-white">
                 再生ボタンを押して開始
             </div>
@@ -71,12 +91,19 @@
         </div>
 
         <!-- Settings / Toggles -->
-        <div class="mt-6 flex justify-between items-center bg-gray-800 p-4 rounded-lg">
-            <div class="flex items-center">
-                <input type="checkbox" id="reviewMode" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-600 ring-offset-gray-800 bg-gray-700 border-gray-600" onchange="toggleReviewMode()">
-                <label for="reviewMode" class="ml-2 text-sm font-medium text-gray-300">復習モード (×のみ)</label>
+        <div class="mt-6 flex flex-col gap-4 bg-gray-800 p-4 rounded-lg">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center">
+                    <input type="checkbox" id="reviewMode" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-600 ring-offset-gray-800 bg-gray-700 border-gray-600" onchange="toggleReviewMode()">
+                    <label for="reviewMode" class="ml-2 text-sm font-medium text-gray-300">復習モード (×のみ)</label>
+                </div>
+                <button onclick="resetProgress()" class="text-xs text-red-400 underline">データ消去</button>
             </div>
-            <button onclick="resetProgress()" class="text-xs text-red-400 underline">データ消去</button>
+            
+            <!-- Pocket Mode Button -->
+            <button onclick="enablePocketMode()" class="w-full bg-indigo-900 hover:bg-indigo-800 text-indigo-100 py-2 rounded border border-indigo-700 flex items-center justify-center">
+                <i class="fas fa-moon mr-2"></i>省エネ・ポケットモード (画面OFF代用)
+            </button>
         </div>
 
         <!-- Logs -->
@@ -85,8 +112,27 @@
         </div>
     </main>
 
+    <!-- Pocket Mode Overlay -->
+    <div id="pocketOverlay" ondblclick="disablePocketMode()">
+        <div class="text-center p-4">
+            <i class="fas fa-unlock fa-3x mb-4 text-gray-600"></i>
+            <p class="text-lg font-bold text-gray-500">ポケットモード実行中</p>
+            <p class="text-sm text-gray-700 mt-2">画面をダブルタップして解除</p>
+            <p class="text-xs text-gray-800 mt-8">音声認識と再生は継続しています。<br>電源ボタンは押さないでください。</p>
+        </div>
+    </div>
+
+    <!-- Silent Audio for Background Keep-alive -->
+    <audio id="silentAudio" loop playsinline>
+        <source src="data:audio/mp3;base64,SUQzBAAAAAABAFRYWFgAAAASAAADbWFqb3JfYnJhbmQAbXA0MgBUWFhYAAAAEQAAA21pbm9yX3ZlcnNpb24AMABUWFhYAAAAHAAAA2NvbXBhdGlibGVfYnJhbmRzAGlzb21tcDQyAFRTU0UAAAAOAAADbGF2ZjU4LjQ1LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAJAAABIAAHCQkODhQUGRkeHiIiKCguLjw8QkJHR01NUlJXV11dYmJoaGt7e4SEiYmOjpmZoaGmpq2tsrK3t7u7wMDGxs7O1Nba2t7e5OTp6e/v8vL39/v7////AAAAATFjYXZjAAAAAAAAAAAAAf//AAABIAAAAAAA//7UAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZnZyZwAAABAAAAAJAAABIAAAJAwAAAAAAAAD/wAA//7UGRn/AAAGkAAAAIAAANIAAAACA2ZtcDQAAAAAZGF0YQAAAAEAAAAA//7UGRn/AAAGkAAAAIAAANIAAAACAAA=" type="audio/mpeg">
+    </audio>
+
     <script>
-        // --- Data: 200 Travel Phrases ---
+        // --- Data: 200 Travel Phrases (Truncated for brevity in this view, implies full list) ---
+        // Full list from original request is preserved in logic, simplified here for file size if needed, 
+        // but assuming the original full list is desired, I will include a representative subset or the full list logic.
+        // For this file generation, I will include the full list logic variable reference.
+        
         const rawPhrases = [
             { ja: "チェックインをお願いします。", en: "Check-in, please." },
             { ja: "予約しています。", en: "I have a reservation." },
@@ -297,6 +343,7 @@
         let processingVoice = false;
         let wakeLock = null;
         let recognition = null;
+        const silentAudio = document.getElementById('silentAudio');
 
         // --- Setup Voice Recognition ---
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -338,6 +385,9 @@
                 btn.classList.replace('hover:bg-red-500', 'hover:bg-blue-500');
             } else {
                 await requestWakeLock();
+                // Play silent audio to hack background keep-alive
+                silentAudio.play().catch(e => console.log("Silent audio play failed", e));
+                
                 startLearning();
                 btn.innerHTML = '<i class="fas fa-stop mr-2"></i>停止';
                 btn.classList.replace('bg-blue-600', 'bg-red-600');
@@ -352,11 +402,23 @@
                     document.getElementById('wakeLockStatus').classList.replace('wake-lock-inactive', 'wake-lock-active');
                     document.getElementById('wakeLockStatus').innerHTML = '<i class="fas fa-lightbulb mr-1"></i>画面維持: ON';
                     log('Wake Lock active');
+                    
+                    // Re-acquire lock if visibility changes (user switches tabs)
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Wake Lock released');
+                    });
                 }
             } catch (err) {
                 log(`Wake Lock Error: ${err.name}, ${err.message}`);
             }
         }
+
+        // Re-acquire Wake Lock when coming back to tab
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
 
         function releaseWakeLock() {
             if (wakeLock !== null) {
@@ -367,6 +429,21 @@
                         document.getElementById('wakeLockStatus').innerHTML = '<i class="fas fa-lightbulb mr-1"></i>画面維持: OFF';
                     });
             }
+        }
+
+        // --- Pocket Mode Logic ---
+        function enablePocketMode() {
+            if (!isPlaying) {
+                alert("学習を開始してからポケットモードを有効にしてください。");
+                return;
+            }
+            document.getElementById('pocketOverlay').classList.add('active');
+            log('Pocket Mode Enabled');
+        }
+
+        function disablePocketMode() {
+            document.getElementById('pocketOverlay').classList.remove('active');
+            log('Pocket Mode Disabled');
         }
 
         function startLearning() {
@@ -385,10 +462,7 @@
             
             // Find starting point (first incorrect or 0)
             currentIndex = 0; 
-            if(!isReviewMode) {
-                 // Optional: resume from last saved index could go here
-            }
-
+            
             updateStats();
             playLoop();
         }
@@ -397,7 +471,9 @@
             isPlaying = false;
             window.speechSynthesis.cancel();
             if(recognition) recognition.stop();
+            silentAudio.pause();
             releaseWakeLock();
+            disablePocketMode();
         }
 
         async function playLoop() {
@@ -436,18 +512,15 @@
             document.getElementById('listeningIndicator').classList.remove('hidden');
             document.getElementById('voiceStatus').innerText = "聞いています...";
             
-            // Mobile specific: If screen is off, recognition might fail instantly. 
-            // We set a fallback timeout to auto-advance if no voice detected in 5s.
             if(recognition) {
                 try {
                     recognition.start();
                 } catch(e) {
                     console.log("Recog start error", e);
-                    // If already started or error, force manual waiting or simple timeout
                 }
             }
             
-            // Safety timeout: if recognition doesn't trigger result or error in 6s
+            // Safety timeout
             setTimeout(() => {
                 if(isPlaying && !processingVoice && document.getElementById('listeningIndicator').classList.contains('hidden') === false) {
                    log("Voice timeout - auto skipping");
@@ -463,12 +536,10 @@
 
             // Keywords
             const positives = ['ok', 'オーケー', 'オッケー', 'yes', 'イエス', '正解', 'good', 'グッド'];
-            const negatives = ['next', 'ネクスト', '次', 'つぎ', 'no', 'ノー', 'だめ', 'ダメ', '違う'];
-
+            
             if (positives.some(v => text.includes(v))) {
                 handleUserChoice(true);
             } else {
-                // Default to Next/Incorrect for any other sound or explicit negative
                 handleUserChoice(false);
             }
         }
@@ -492,10 +563,6 @@
             const color = isCorrect ? 'border-green-500' : 'border-red-500';
             card.classList.add(color);
             
-            // Sound feedback (short beep/ding optional, using TTS here for simplicity)
-            // const feedback = isCorrect ? "Good" : "Next";
-            // speak(feedback, 'en-US', 1.5).then(() => { ... });
-
             setTimeout(() => {
                 card.classList.remove(color);
                 currentIndex++;
