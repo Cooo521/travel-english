@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel English Audio Learner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; touch-action: manipulation; }
+        .active-card { transform: scale(1.02); border-color: #3b82f6; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3); }
+        /* Wake Lock indicator style */
+        .wake-lock-active { color: #10b981; }
+        .wake-lock-inactive { color: #ef4444; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-4">
+
+    <!-- Header & Status -->
+    <header class="w-full max-w-md flex justify-between items-center mb-6">
+        <h1 class="text-xl font-bold text-blue-400"><i class="fas fa-plane-departure mr-2"></i>Travel English</h1>
+        <div class="text-xs text-gray-400 flex flex-col items-end">
+            <span id="wakeLockStatus" class="wake-lock-inactive"><i class="fas fa-lightbulb mr-1"></i>画面維持: OFF</span>
+            <span id="voiceStatus">待機中</span>
+        </div>
+    </header>
+
+    <!-- Main Card -->
+    <main class="w-full max-w-md flex-grow flex flex-col justify-center">
+        
+        <!-- Progress Bar -->
+        <div class="w-full bg-gray-700 rounded-full h-2.5 mb-4">
+            <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+        </div>
+        <div class="text-center text-sm text-gray-400 mb-6">
+            Phrase: <span id="currentIndex">1</span> / <span id="totalCount">200</span>
+        </div>
+
+        <!-- Phrase Card -->
+        <div id="card" class="bg-gray-800 p-8 rounded-2xl border-2 border-gray-700 flex flex-col items-center justify-center min-h-[300px] transition-all duration-300">
+            <div id="japaneseText" class="text-2xl font-bold mb-8 text-center text-white">
+                再生ボタンを押して開始
+            </div>
+            
+            <!-- Hidden/Revealed English Answer -->
+            <div id="englishArea" class="opacity-0 transition-opacity duration-500 text-center">
+                <div id="englishText" class="text-xl text-yellow-400 font-medium mb-2">
+                    Ready?
+                </div>
+            </div>
+
+            <!-- Voice Listening Indicator -->
+            <div id="listeningIndicator" class="hidden mt-6 animate-pulse text-red-400 font-bold">
+                <i class="fas fa-microphone mr-2"></i>Listening... ("OK" / "次")
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="mt-8 grid grid-cols-2 gap-4 w-full">
+            <button id="toggleBtn" onclick="togglePlay()" class="col-span-2 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition-transform active:scale-95">
+                <i class="fas fa-play mr-2"></i>学習スタート
+            </button>
+
+            <!-- Manual Buttons (Fallback for voice) -->
+            <button onclick="handleUserChoice(false)" class="bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold active:scale-95">
+                <i class="fas fa-times mr-2"></i>次へ / 不正解
+            </button>
+            <button onclick="handleUserChoice(true)" class="bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg font-semibold active:scale-95">
+                <i class="fas fa-check mr-2"></i>OK / 正解
+            </button>
+        </div>
+
+        <!-- Settings / Toggles -->
+        <div class="mt-6 flex justify-between items-center bg-gray-800 p-4 rounded-lg">
+            <div class="flex items-center">
+                <input type="checkbox" id="reviewMode" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-600 ring-offset-gray-800 bg-gray-700 border-gray-600" onchange="toggleReviewMode()">
+                <label for="reviewMode" class="ml-2 text-sm font-medium text-gray-300">復習モード (×のみ)</label>
+            </div>
+            <button onclick="resetProgress()" class="text-xs text-red-400 underline">データ消去</button>
+        </div>
+
+        <!-- Logs -->
+        <div class="mt-4 p-2 bg-black bg-opacity-30 rounded text-xs text-gray-500 h-20 overflow-y-auto" id="logs">
+            Logs will appear here...
+        </div>
+    </main>
+
+    <script>
+        // --- Data: 200 Travel Phrases ---
+        const rawPhrases = [
+            { ja: "チェックインをお願いします。", en: "Check-in, please." },
+            { ja: "予約しています。", en: "I have a reservation." },
+            { ja: "パスポートを見せてください。", en: "Show me your passport, please." },
+            { ja: "私の部屋はどこですか？", en: "Where is my room?" },
+            { ja: "朝食は何時ですか？", en: "What time is breakfast?" },
+            { ja: "Wi-Fiのパスワードは何ですか？", en: "What is the Wi-Fi password?" },
+            { ja: "荷物を預かってもらえますか？", en: "Can you keep my baggage?" },
+            { ja: "タクシーを呼んでもらえますか？", en: "Can you call a taxi for me?" },
+            { ja: "近くにお勧めのレストランはありますか？", en: "Are there any recommended restaurants nearby?" },
+            { ja: "チェックアウトをお願いします。", en: "Check-out, please." },
+            { ja: "メニューを見せてください。", en: "Can I see the menu, please?" },
+            { ja: "これをください。", en: "I'll have this." },
+            { ja: "水をお願いします。", en: "Water, please." },
+            { ja: "お会計をお願いします。", en: "Check, please." },
+            { ja: "クレジットカードは使えますか？", en: "Do you accept credit cards?" },
+            { ja: "トイレはどこですか？", en: "Where is the restroom?" },
+            { ja: "このバスは市内に行きますか？", en: "Does this bus go to the city center?" },
+            { ja: "ここで降ろしてください。", en: "Let me off here, please." },
+            { ja: "地図をもらえますか？", en: "Can I have a map?" },
+            { ja: "写真を撮ってもらえますか？", en: "Can you take a picture of me?" },
+            { ja: "助けてください！", en: "Help!" },
+            { ja: "日本語を話せる人はいますか？", en: "Is there anyone who speaks Japanese?" },
+            { ja: "気分が悪いです。", en: "I feel sick." },
+            { ja: "病院はどこですか？", en: "Where is the hospital?" },
+            { ja: "いくらですか？", en: "How much is it?" },
+            { ja: "高すぎます。", en: "It's too expensive." },
+            { ja: "安くしてもらえませんか？", en: "Can you give me a discount?" },
+            { ja: "試着してもいいですか？", en: "Can I try it on?" },
+            { ja: "これの別の色はありますか？", en: "Do you have this in another color?" },
+            { ja: "ただ見ているだけです。", en: "I'm just looking." },
+            { ja: "搭乗口はどこですか？", en: "Where is the boarding gate?" },
+            { ja: "乗り継ぎカウンターはどこですか？", en: "Where is the connecting flight counter?" },
+            { ja: "荷物が出てきません。", en: "My baggage hasn't come out." },
+            { ja: "両替所はどこですか？", en: "Where is the currency exchange?" },
+            { ja: "地下鉄の駅はどこですか？", en: "Where is the subway station?" },
+            { ja: "切符売り場はどこですか？", en: "Where is the ticket office?" },
+            { ja: "この席は空いていますか？", en: "Is this seat taken?" },
+            { ja: "少しゆっくり話してください。", en: "Please speak a little slower." },
+            { ja: "もう一度言ってください。", en: "Could you say that again?" },
+            { ja: "書いてもらえますか？", en: "Could you write it down?" },
+            { ja: "意味がわかりません。", en: "I don't understand." },
+            { ja: "結構です（断り）。", en: "No, thank you." },
+            { ja: "はい、お願いします。", en: "Yes, please." },
+            { ja: "すみません（呼びかけ）。", en: "Excuse me." },
+            { ja: "ごめんなさい。", en: "I'm sorry." },
+            { ja: "どういたしまして。", en: "You're welcome." },
+            { ja: "楽しい時間を過ごしました。", en: "I had a great time." },
+            { ja: "また会いましょう。", en: "See you again." },
+            { ja: "持ち帰りにできますか？", en: "Can I have it to go?" },
+            { ja: "お釣りはいりません。", en: "Keep the change." },
+            { ja: "領収書をください。", en: "Receipt, please." },
+            { ja: "予約していません。", en: "I don't have a reservation." },
+            { ja: "窓側の席がいいです。", en: "I'd like a window seat." },
+            { ja: "通路側の席がいいです。", en: "I'd like an aisle seat." },
+            { ja: "禁煙席をお願いします。", en: "Non-smoking table, please." },
+            { ja: "アレルギーがあります。", en: "I have an allergy." },
+            { ja: "ナッツ抜きにできますか？", en: "Can you make it without nuts?" },
+            { ja: "おすすめは何ですか？", en: "What do you recommend?" },
+            { ja: "どのくらい待ちますか？", en: "How long is the wait?" },
+            { ja: "もう注文しました。", en: "We've already ordered." },
+            { ja: "まだ食べています。", en: "I'm still eating." },
+            { ja: "お皿を下げてもらえますか？", en: "Can you clear the table?" },
+            { ja: "別々に払えますか？", en: "Can we pay separately?" },
+            { ja: "コンビニはどこですか？", en: "Where is a convenience store?" },
+            { ja: "ATMはどこですか？", en: "Where is an ATM?" },
+            { ja: "一番近い駅はどこですか？", en: "Where is the nearest station?" },
+            { ja: "ここに行きたいのですが。", en: "I'd like to go here." },
+            { ja: "歩いて行けますか？", en: "Can I walk there?" },
+            { ja: "どのくらい時間がかかりますか？", en: "How long does it take?" },
+            { ja: "右に曲がってください。", en: "Turn right." },
+            { ja: "左に曲がってください。", en: "Turn left." },
+            { ja: "まっすぐ行ってください。", en: "Go straight." },
+            { ja: "角を曲がったところにあります。", en: "It's around the corner." },
+            { ja: "迷子になりました。", en: "I'm lost." },
+            { ja: "警察を呼んでください。", en: "Call the police." },
+            { ja: "救急車を呼んでください。", en: "Call an ambulance." },
+            { ja: "財布を盗まれました。", en: "My wallet was stolen." },
+            { ja: "パスポートをなくしました。", en: "I lost my passport." },
+            { ja: "大使館はどこですか？", en: "Where is the embassy?" },
+            { ja: "電話を貸してもらえますか？", en: "Can I use your phone?" },
+            { ja: "シャワーのお湯が出ません。", en: "There is no hot water in the shower." },
+            { ja: "エアコンが動きません。", en: "The air conditioner doesn't work." },
+            { ja: "隣の部屋がうるさいです。", en: "The room next door is noisy." },
+            { ja: "タオルを交換してください。", en: "Please change the towels." },
+            { ja: "部屋を掃除してください。", en: "Please clean my room." },
+            { ja: "起こさないでください。", en: "Do not disturb." },
+            { ja: "鍵を部屋に忘れました。", en: "I left my key in the room." },
+            { ja: "アイロンを貸してもらえますか？", en: "Can I borrow an iron?" },
+            { ja: "ドライヤーはありますか？", en: "Do you have a hair dryer?" },
+            { ja: "タクシー乗り場はどこですか？", en: "Where is the taxi stand?" },
+            { ja: "トランクを開けてください。", en: "Open the trunk, please." },
+            { ja: "ここで待っていてください。", en: "Please wait here." },
+            { ja: "急いでください。", en: "Please hurry." },
+            { ja: "空港までお願いします。", en: "To the airport, please." },
+            { ja: "お釣りは取っておいてください。", en: "Keep the change." },
+            { ja: "免税になりますか？", en: "Is this duty-free?" },
+            { ja: "袋をください。", en: "Can I have a bag?" },
+            { ja: "ギフトラッピングをお願いします。", en: "Gift wrap, please." },
+            { ja: "大きいサイズはありますか？", en: "Do you have a larger size?" },
+            { ja: "小さいサイズはありますか？", en: "Do you have a smaller size?" },
+            { ja: "日本円で払えますか？", en: "Can I pay in Japanese Yen?" },
+            { ja: "両替レートはいくらですか？", en: "What is the exchange rate?" },
+            { ja: "小銭を混ぜてくれますか？", en: "Can you include some small change?" },
+            { ja: "美術館は何時に開きますか？", en: "What time does the museum open?" },
+            { ja: "閉館時間はいつですか？", en: "When is the closing time?" },
+            { ja: "入場料はいくらですか？", en: "How much is the admission fee?" },
+            { ja: "学生割引はありますか？", en: "Is there a student discount?" },
+            { ja: "写真を撮ってもいいですか？", en: "Can I take pictures?" },
+            { ja: "フラッシュは禁止です。", en: "No flash allowed." },
+            { ja: "ガイドツアーはありますか？", en: "Are there guided tours?" },
+            { ja: "日本語のパンフレットはありますか？", en: "Do you have a Japanese brochure?" },
+            { ja: "出口はどこですか？", en: "Where is the exit?" },
+            { ja: "入り口はどこですか？", en: "Where is the entrance?" },
+            { ja: "エレベーターはどこですか？", en: "Where is the elevator?" },
+            { ja: "エスカレーターはどこですか？", en: "Where is the escalator?" },
+            { ja: "喫煙所はどこですか？", en: "Where is the smoking area?" },
+            { ja: "飲み水をくれませんか？", en: "Can I have some drinking water?" },
+            { ja: "氷なしでお願いします。", en: "No ice, please." },
+            { ja: "塩をください。", en: "Salt, please." },
+            { ja: "砂糖をください。", en: "Sugar, please." },
+            { ja: "フォークを落としました。", en: "I dropped my fork." },
+            { ja: "新しいものを持ってきてください。", en: "Please bring me a new one." },
+            { ja: "とても美味しかったです。", en: "It was delicious." },
+            { ja: "満席です。", en: "We are full." },
+            { ja: "何名様ですか？", en: "How many people?" },
+            { ja: "2人です。", en: "Two people." },
+            { ja: "4人です。", en: "Four people." },
+            { ja: "子供用の椅子はありますか？", en: "Do you have a high chair?" },
+            { ja: "ベジタリアン料理はありますか？", en: "Do you have vegetarian dishes?" },
+            { ja: "豚肉は入っていますか？", en: "Does this contain pork?" },
+            { ja: "牛肉は食べられません。", en: "I cannot eat beef." },
+            { ja: "生ビールをください。", en: "Draft beer, please." },
+            { ja: "グラスワインをください。", en: "A glass of wine, please." },
+            { ja: "乾杯！", en: "Cheers!" },
+            { ja: "お腹がいっぱいです。", en: "I'm full." },
+            { ja: "これは何ですか？", en: "What is this?" },
+            { ja: "辛いですか？", en: "Is it spicy?" },
+            { ja: "甘いですか？", en: "Is it sweet?" },
+            { ja: "酸っぱいですか？", en: "Is it sour?" },
+            { ja: "苦いですか？", en: "Is it bitter?" },
+            { ja: "熱いです。", en: "It's hot." },
+            { ja: "冷たいです。", en: "It's cold." },
+            { ja: "いつ出発しますか？", en: "When does it leave?" },
+            { ja: "いつ到着しますか？", en: "When does it arrive?" },
+            { ja: "遅れています。", en: "It's delayed." },
+            { ja: "キャンセルされました。", en: "It's cancelled." },
+            { ja: "どのホームですか？", en: "Which platform?" },
+            { ja: "往復切符をください。", en: "Round trip ticket, please." },
+            { ja: "片道切符をください。", en: "One way ticket, please." },
+            { ja: "指定席をお願いします。", en: "Reserved seat, please." },
+            { ja: "自由席でいいです。", en: "Non-reserved seat is fine." },
+            { ja: "この電車は〇〇に止まりますか？", en: "Does this train stop at OO?" },
+            { ja: "次の駅は何ですか？", en: "What is the next station?" },
+            { ja: "乗り換えが必要です。", en: "You need to transfer." },
+            { ja: "どこで乗り換えですか？", en: "Where do I transfer?" },
+            { ja: "ドアが閉まります。", en: "Doors closing." },
+            { ja: "ご注意ください。", en: "Please be careful." },
+            { ja: "忘れ物をしました。", en: "I left something behind." },
+            { ja: "落とし物センターはどこですか？", en: "Where is the lost and found?" },
+            { ja: "名前は何ですか？", en: "What is your name?" },
+            { ja: "日本から来ました。", en: "I'm from Japan." },
+            { ja: "初めてここに来ました。", en: "This is my first time here." },
+            { ja: "一人旅です。", en: "I'm traveling alone." },
+            { ja: "家族と一緒です。", en: "I'm with my family." },
+            { ja: "友達と一緒です。", en: "I'm with my friends." },
+            { ja: "ここに住んでいますか？", en: "Do you live here?" },
+            { ja: "お仕事は何ですか？", en: "What do you do?" },
+            { ja: "趣味は何ですか？", en: "What is your hobby?" },
+            { ja: "Facebookをやっていますか？", en: "Are you on Facebook?" },
+            { ja: "Instagramをやっていますか？", en: "Are you on Instagram?" },
+            { ja: "連絡先を教えてもらえますか？", en: "Can I have your contact info?" },
+            { ja: "英語は少ししか話せません。", en: "I only speak a little English." },
+            { ja: "もっと勉強します。", en: "I will study more." },
+            { ja: "良い旅を！", en: "Have a nice trip!" },
+            { ja: "気をつけて。", en: "Take care." },
+            { ja: "お大事に。", en: "Get well soon." },
+            { ja: "おめでとう。", en: "Congratulations." },
+            { ja: "残念ですね。", en: "That's too bad." },
+            { ja: "すごい！", en: "Amazing!" },
+            { ja: "本当ですか？", en: "Really?" },
+            { ja: "冗談でしょう？", en: "You're kidding!" },
+            { ja: "もちろん。", en: "Of course." },
+            { ja: "多分。", en: "Maybe." },
+            { ja: "わかりました。", en: "I see." },
+            { ja: "問題ありません。", en: "No problem." },
+            { ja: "気にしないでください。", en: "Don't worry about it." },
+            { ja: "手伝いましょうか？", en: "Can I help you?" },
+            { ja: "良い天気ですね。", en: "It's nice weather." },
+            { ja: "雨が降っています。", en: "It's raining." },
+            { ja: "寒いです。", en: "It's cold." },
+            { ja: "暑いです。", en: "It's hot." },
+            { ja: "雪が降っています。", en: "It's snowing." },
+            { ja: "傘を持っていません。", en: "I don't have an umbrella." },
+            { ja: "濡れました。", en: "I got wet." },
+            { ja: "乾かしたいです。", en: "I want to dry this." },
+            { ja: "洗濯機はありますか？", en: "Is there a washing machine?" },
+            { ja: "洗剤はありますか？", en: "Do you have detergent?" },
+            { ja: "コインランドリーを探しています。", en: "I'm looking for a laundromat." }
+        ];
+
+        // --- App State ---
+        let phrases = JSON.parse(localStorage.getItem('travelPhrases')) || rawPhrases.map((p, i) => ({ ...p, id: i, correct: false }));
+        let isReviewMode = false;
+        let playList = [];
+        let currentIndex = 0;
+        let isPlaying = false;
+        let processingVoice = false;
+        let wakeLock = null;
+        let recognition = null;
+
+        // --- Setup Voice Recognition ---
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ja-JP'; // Listen for Japanese commands
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript.toLowerCase();
+                log(`Heard: "${transcript}"`);
+                handleVoiceCommand(transcript);
+            };
+
+            recognition.onerror = (event) => {
+                log(`Voice Error: ${event.error}`);
+                if(isPlaying && !processingVoice) {
+                    // If error (e.g., no speech), treat as timeout/next after a short delay
+                    setTimeout(() => handleUserChoice(false, true), 1000);
+                }
+            };
+            
+            recognition.onend = () => {
+                document.getElementById('listeningIndicator').classList.add('hidden');
+            };
+        } else {
+            log("Browser does not support Speech Recognition.");
+        }
+
+        // --- Core Functions ---
+
+        async function togglePlay() {
+            const btn = document.getElementById('toggleBtn');
+            if (isPlaying) {
+                stopLearning();
+                btn.innerHTML = '<i class="fas fa-play mr-2"></i>再開する';
+                btn.classList.replace('bg-red-600', 'bg-blue-600');
+                btn.classList.replace('hover:bg-red-500', 'hover:bg-blue-500');
+            } else {
+                await requestWakeLock();
+                startLearning();
+                btn.innerHTML = '<i class="fas fa-stop mr-2"></i>停止';
+                btn.classList.replace('bg-blue-600', 'bg-red-600');
+                btn.classList.replace('hover:bg-blue-500', 'hover:bg-red-500');
+            }
+        }
+
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    document.getElementById('wakeLockStatus').classList.replace('wake-lock-inactive', 'wake-lock-active');
+                    document.getElementById('wakeLockStatus').innerHTML = '<i class="fas fa-lightbulb mr-1"></i>画面維持: ON';
+                    log('Wake Lock active');
+                }
+            } catch (err) {
+                log(`Wake Lock Error: ${err.name}, ${err.message}`);
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release()
+                    .then(() => {
+                        wakeLock = null;
+                        document.getElementById('wakeLockStatus').classList.replace('wake-lock-active', 'wake-lock-inactive');
+                        document.getElementById('wakeLockStatus').innerHTML = '<i class="fas fa-lightbulb mr-1"></i>画面維持: OFF';
+                    });
+            }
+        }
+
+        function startLearning() {
+            isPlaying = true;
+            // Filter list based on mode
+            if (isReviewMode) {
+                playList = phrases.filter(p => !p.correct);
+                if (playList.length === 0) {
+                    alert("復習するフレーズがありません！全問正解です。");
+                    stopLearning();
+                    return;
+                }
+            } else {
+                playList = phrases;
+            }
+            
+            // Find starting point (first incorrect or 0)
+            currentIndex = 0; 
+            if(!isReviewMode) {
+                 // Optional: resume from last saved index could go here
+            }
+
+            updateStats();
+            playLoop();
+        }
+
+        function stopLearning() {
+            isPlaying = false;
+            window.speechSynthesis.cancel();
+            if(recognition) recognition.stop();
+            releaseWakeLock();
+        }
+
+        async function playLoop() {
+            if (!isPlaying) return;
+            if (currentIndex >= playList.length) {
+                // Loop or Finish
+                currentIndex = 0; // Loop forever
+                // alert("一周しました！");
+            }
+
+            const currentPhrase = playList[currentIndex];
+            updateUI(currentPhrase);
+
+            // 1. Speak Japanese
+            await speak(currentPhrase.ja, 'ja-JP');
+            
+            if (!isPlaying) return;
+
+            // 2. Wait 3 seconds
+            await new Promise(r => setTimeout(r, 3000));
+
+            if (!isPlaying) return;
+
+            // 3. Show & Speak English
+            revealEnglish();
+            await speak(currentPhrase.en, 'en-US');
+
+            if (!isPlaying) return;
+
+            // 4. Listen for User Judgment
+            startListening();
+        }
+
+        function startListening() {
+            processingVoice = false;
+            document.getElementById('listeningIndicator').classList.remove('hidden');
+            document.getElementById('voiceStatus').innerText = "聞いています...";
+            
+            // Mobile specific: If screen is off, recognition might fail instantly. 
+            // We set a fallback timeout to auto-advance if no voice detected in 5s.
+            if(recognition) {
+                try {
+                    recognition.start();
+                } catch(e) {
+                    console.log("Recog start error", e);
+                    // If already started or error, force manual waiting or simple timeout
+                }
+            }
+            
+            // Safety timeout: if recognition doesn't trigger result or error in 6s
+            setTimeout(() => {
+                if(isPlaying && !processingVoice && document.getElementById('listeningIndicator').classList.contains('hidden') === false) {
+                   log("Voice timeout - auto skipping");
+                   handleUserChoice(false, true); // Auto-skip as 'next'
+                }
+            }, 6000);
+        }
+
+        function handleVoiceCommand(text) {
+            processingVoice = true;
+            if(recognition) recognition.stop();
+            document.getElementById('listeningIndicator').classList.add('hidden');
+
+            // Keywords
+            const positives = ['ok', 'オーケー', 'オッケー', 'yes', 'イエス', '正解', 'good', 'グッド'];
+            const negatives = ['next', 'ネクスト', '次', 'つぎ', 'no', 'ノー', 'だめ', 'ダメ', '違う'];
+
+            if (positives.some(v => text.includes(v))) {
+                handleUserChoice(true);
+            } else {
+                // Default to Next/Incorrect for any other sound or explicit negative
+                handleUserChoice(false);
+            }
+        }
+
+        function handleUserChoice(isCorrect, isAuto = false) {
+            if(recognition) recognition.stop(); // Ensure mic is off
+            document.getElementById('listeningIndicator').classList.add('hidden');
+            document.getElementById('voiceStatus').innerText = "待機中";
+            
+            if (!isPlaying) return;
+
+            const currentId = playList[currentIndex].id;
+            const originalIndex = phrases.findIndex(p => p.id === currentId);
+
+            // Update State
+            phrases[originalIndex].correct = isCorrect;
+            saveData();
+
+            // Visual feedback
+            const card = document.getElementById('card');
+            const color = isCorrect ? 'border-green-500' : 'border-red-500';
+            card.classList.add(color);
+            
+            // Sound feedback (short beep/ding optional, using TTS here for simplicity)
+            // const feedback = isCorrect ? "Good" : "Next";
+            // speak(feedback, 'en-US', 1.5).then(() => { ... });
+
+            setTimeout(() => {
+                card.classList.remove(color);
+                currentIndex++;
+                updateStats();
+                playLoop();
+            }, 500); // Short delay before next
+        }
+
+        // --- TTS Helper ---
+        function speak(text, lang, rate = 1.0) {
+            return new Promise((resolve) => {
+                const uttr = new SpeechSynthesisUtterance(text);
+                uttr.lang = lang;
+                uttr.rate = rate;
+                
+                // Pixel/Android Chrome fix: ensure voice loads
+                const voices = window.speechSynthesis.getVoices();
+                if(voices.length > 0) {
+                    const voice = voices.find(v => v.lang.includes(lang.replace('_', '-')));
+                    if(voice) uttr.voice = voice;
+                }
+
+                uttr.onend = resolve;
+                uttr.onerror = resolve; // Continue even on error
+                window.speechSynthesis.speak(uttr);
+            });
+        }
+
+        // --- UI Updates ---
+        function updateUI(phrase) {
+            document.getElementById('japaneseText').innerText = phrase.ja;
+            document.getElementById('englishText').innerText = phrase.en;
+            document.getElementById('englishArea').classList.remove('opacity-100');
+            document.getElementById('englishArea').classList.add('opacity-0');
+        }
+
+        function revealEnglish() {
+            document.getElementById('englishArea').classList.remove('opacity-0');
+            document.getElementById('englishArea').classList.add('opacity-100');
+        }
+
+        function updateStats() {
+            document.getElementById('currentIndex').innerText = currentIndex + 1;
+            document.getElementById('totalCount').innerText = playList.length;
+            const pct = ((currentIndex) / playList.length) * 100;
+            document.getElementById('progressBar').style.width = `${pct}%`;
+        }
+
+        function toggleReviewMode() {
+            isReviewMode = document.getElementById('reviewMode').checked;
+            stopLearning();
+            document.getElementById('toggleBtn').innerHTML = '<i class="fas fa-play mr-2"></i>学習スタート';
+            document.getElementById('toggleBtn').classList.replace('bg-red-600', 'bg-blue-600');
+            document.getElementById('toggleBtn').classList.replace('hover:bg-red-500', 'hover:bg-blue-500');
+        }
+
+        function log(msg) {
+            const logs = document.getElementById('logs');
+            logs.innerHTML = `<div>${new Date().toLocaleTimeString()} ${msg}</div>` + logs.innerHTML;
+        }
+
+        function saveData() {
+            localStorage.setItem('travelPhrases', JSON.stringify(phrases));
+        }
+        
+        function resetProgress() {
+            if(confirm("学習データをリセットしますか？")) {
+                localStorage.removeItem('travelPhrases');
+                location.reload();
+            }
+        }
+
+        // --- Init ---
+        // Preload voices
+        window.speechSynthesis.getVoices();
+        window.speechSynthesis.onvoiceschanged = () => {
+            window.speechSynthesis.getVoices();
+        };
+
+    </script>
+</body>
+</html>
