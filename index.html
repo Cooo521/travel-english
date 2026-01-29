@@ -2,853 +2,700 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Travel English Drill</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel English Audio Player</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Noto+Sans+JP:wght@400;700&display=swap');
-
-        body {
-            font-family: 'Noto Sans JP', 'Fredoka', sans-serif;
-            touch-action: manipulation;
-            background-color: #f0f9ff;
-            overflow: hidden; /* 背景アニメーションのはみ出し防止 */
-        }
-        .app-container {
-            height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            z-index: 10;
-        }
-
-        /* カラフルな背景装飾 */
-        .bg-orb {
-            position: fixed;
-            border-radius: 50%;
-            filter: blur(60px);
-            z-index: 0;
-            opacity: 0.6;
-            animation: float 20s infinite ease-in-out;
-        }
-        .orb-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: #FF9A9E; animation-delay: 0s; }
-        .orb-2 { bottom: -10%; right: -10%; width: 60vw; height: 60vw; background: #a18cd1; animation-delay: -5s; }
-        .orb-3 { top: 40%; left: 40%; width: 40vw; height: 40vw; background: #fad0c4; animation-delay: -10s; }
-        
-        @keyframes float {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(30px, -50px) scale(1.1); }
-            66% { transform: translate(-20px, 20px) scale(0.9); }
-        }
-
-        /* ロックモード */
-        #lockOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #000;
-            z-index: 9999;
-            display: none;
-            color: #4b5563;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            user-select: none;
-        }
-
-        /* マイクのパルスアニメーション */
-        .pulse-mic {
-            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
-        }
-        @keyframes pulse-ring {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(255, 107, 107, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
-        }
-
-        /* カスタムレンジスライダー */
-        input[type=range] {
-            -webkit-appearance: none;
-            background: transparent;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 24px;
-            width: 24px;
-            border-radius: 50%;
-            background: #fff;
-            border: 4px solid #4facfe;
-            margin-top: -10px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-            transition: transform 0.1s;
-        }
-        input[type=range]:active::-webkit-slider-thumb {
-            transform: scale(1.2);
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 6px;
-            background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
-            border-radius: 3px;
-        }
-        
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        /* グラスモーフィズム強化 */
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.75);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
-        }
-        
-        .glass-btn {
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            transition: all 0.3s ease;
-        }
-        .glass-btn:active {
-            transform: scale(0.95);
-        }
-
-        /* テキストのグラデーション */
-        .text-gradient {
-            background: linear-gradient(45deg, #ff9a9e 0%, #fad0c4 99%, #fad0c4 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .text-gradient-blue {
-            background: linear-gradient(120deg, #89f7fe 0%, #66a6ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; touch-action: manipulation; }
+        .wake-lock-active { color: #10b981; }
+        .wake-lock-inactive { color: #ef4444; }
     </style>
 </head>
-<body class="text-slate-700 bg-gray-50">
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-4">
 
-    <!-- 背景アニメーション -->
-    <div class="bg-orb orb-1"></div>
-    <div class="bg-orb orb-2"></div>
-    <div class="bg-orb orb-3"></div>
-
-    <div id="app" class="app-container relative overflow-hidden">
-        
-        <!-- ヘッダー -->
-        <header class="bg-white/60 backdrop-blur-md px-5 py-3 shadow-sm flex justify-between items-center z-20 sticky top-0 border-b border-white/40">
-            <h1 class="font-bold text-xl text-slate-700 flex items-center gap-2">
-                <div class="bg-gradient-to-tr from-blue-400 to-purple-500 text-white p-1.5 rounded-lg shadow-md">
-                    <i class="fas fa-plane text-sm"></i>
-                </div>
-                <span class="font-fredoka tracking-wide" style="font-family: 'Fredoka', sans-serif;">Travel Drill</span>
-            </h1>
-            <div class="flex gap-3">
-                <button onclick="app.toggleReviewMode()" id="reviewBtn" class="text-xs font-bold bg-white/80 text-rose-500 px-3 py-1.5 rounded-full hidden flex items-center gap-1 shadow-sm border border-rose-100 hover:bg-rose-50 transition-all">
-                    <i class="fas fa-history"></i>Review <span id="wrongCount" class="bg-rose-500 text-white px-1.5 rounded-full text-[10px]">0</span>
-                </button>
-                <button onclick="app.openSettings()" class="w-9 h-9 rounded-full bg-white/80 text-slate-500 hover:text-blue-500 hover:bg-white shadow-sm flex items-center justify-center transition-all">
-                    <i class="fas fa-cog"></i>
-                </button>
-            </div>
-        </header>
-
-        <!-- メイン学習画面 -->
-        <main id="mainScreen" class="flex-1 flex flex-col items-center justify-between p-6 pb-12 transition-opacity duration-300 overflow-y-auto">
-            
-            <!-- 進捗表示 -->
-            <div class="w-full max-w-md space-y-2 mt-2">
-                <div class="flex justify-between items-end px-1">
-                    <span id="progressText" class="text-sm font-bold text-slate-500 font-fredoka">Q. 1 / 200</span>
-                    <span id="modeBadge" class="text-[10px] font-bold px-3 py-1 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 text-white shadow-sm">通常モード</span>
-                </div>
-                <div class="h-2 w-full bg-white/50 rounded-full overflow-hidden shadow-inner">
-                    <div id="progressBar" class="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(52,211,153,0.5)]" style="width: 0.5%"></div>
-                </div>
-            </div>
-            
-            <!-- フレーズカード -->
-            <div class="w-full max-w-md my-4 relative group perspective-1000">
-                <div class="glass-panel rounded-[2rem] p-8 min-h-[260px] flex flex-col justify-center items-center text-center relative overflow-hidden transition-all duration-500 hover:scale-[1.02]">
-                    
-                    <!-- ステータスアイコン -->
-                    <div id="statusIndicator" class="absolute top-5 right-6 text-slate-300/80 transition-colors">
-                        <i class="fas fa-volume-high text-2xl"></i>
-                    </div>
-
-                    <!-- テキストエリア -->
-                    <div class="z-10 w-full space-y-8">
-                        <div>
-                            <p class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">Japanese</p>
-                            <h2 id="jpText" class="text-2xl md:text-3xl font-bold text-slate-800 leading-relaxed drop-shadow-sm">Let's Start!</h2>
-                        </div>
-                        
-                        <div class="relative min-h-[4rem] flex flex-col items-center justify-center bg-white/40 rounded-xl p-2 border border-white/60">
-                            <p class="text-xs font-bold text-blue-400 mb-1 uppercase tracking-widest absolute -top-3 bg-white px-2 rounded-full shadow-sm">English</p>
-                            <p id="enText" class="text-xl md:text-2xl font-bold text-blue-600 opacity-0 transition-all duration-500 transform translate-y-2" style="font-family: 'Fredoka', sans-serif;">Ready?</p>
-                        </div>
-                    </div>
-                    
-                    <!-- 判定結果オーバーレイ -->
-                    <div id="resultOverlay" class="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm hidden z-20 transition-all rounded-[2rem]">
-                        <div class="transform scale-0 transition-transform duration-300" id="resultIconContainer">
-                            <!-- アイコンはJSで制御 -->
-                            <i id="resultIcon" class="fas fa-check-circle text-8xl text-emerald-500 drop-shadow-xl"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- コントロールエリア -->
-            <div class="w-full max-w-md flex flex-col items-center gap-6">
-                
-                <!-- マイクステータス -->
-                <div id="micStatus" class="h-10 flex items-center justify-center text-slate-500 text-sm font-bold gap-2 px-6 rounded-full glass-btn shadow-sm">
-                    <i class="fas fa-microphone-slash text-slate-400"></i> <span class="tracking-wide">待機中</span>
-                </div>
-
-                <!-- 再生ボタン -->
-                <div class="relative">
-                    <!-- 後ろの光るエフェクト -->
-                    <div class="absolute inset-0 bg-blue-400 rounded-full blur-xl opacity-30 animate-pulse"></div>
-                    <button id="playBtn" onclick="app.togglePlay()" class="relative w-24 h-24 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600 text-white shadow-xl hover:shadow-blue-400/50 hover:scale-105 active:scale-95 transition-all duration-300 z-10 border-4 border-white/30">
-                        <i class="fas fa-play text-4xl ml-2 drop-shadow-md"></i>
-                    </button>
-                </div>
-
-                <!-- スピードバロメータ -->
-                <div class="w-full glass-panel rounded-2xl p-4">
-                    <div class="flex justify-between items-center mb-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        <span><i class="fas fa-tachometer-alt mr-1"></i>Speed</span>
-                        <span id="speedDisplay" class="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-md">x1.0</span>
-                    </div>
-                    <div class="flex items-center gap-4 text-slate-400">
-                        <i class="fas fa-turtle text-lg text-emerald-400"></i>
-                        <input type="range" id="rateRange" min="0.5" max="1.5" step="0.1" value="1.0" class="flex-1 h-2 rounded-lg cursor-pointer">
-                        <i class="fas fa-rabbit text-xl text-rose-400"></i>
-                    </div>
-                </div>
-
-                <!-- ロックボタン -->
-                <button onclick="app.activateLockMode()" class="w-full py-3.5 rounded-2xl text-slate-500 text-sm font-bold bg-white/50 hover:bg-white/80 transition-colors flex items-center justify-center gap-2 border border-white/60 shadow-sm">
-                    <i class="fas fa-lock text-slate-400"></i> ポケットに入れる (画面ロック)
-                </button>
-            </div>
-        </main>
-
-        <!-- 復習リスト画面 (スライドイン) -->
-        <div id="reviewScreen" class="absolute inset-0 bg-slate-50/95 backdrop-blur-xl z-30 transform translate-x-full transition-transform duration-300 flex flex-col">
-            <div class="bg-white/80 p-4 shadow-sm flex items-center justify-between sticky top-0 z-10 border-b">
-                <h2 class="font-bold text-lg text-rose-500 flex items-center gap-2">
-                    <div class="bg-rose-100 p-1.5 rounded-md"><i class="fas fa-book-open"></i></div> 復習リスト
-                </h2>
-                <button onclick="app.closeReviewMode()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <div class="p-4 bg-rose-50 text-rose-800 text-sm flex justify-between items-center border-b border-rose-100">
-                <span class="font-bold"><i class="fas fa-fire mr-1"></i>苦手を克服しよう！</span>
-                <button onclick="app.startReview()" class="bg-gradient-to-r from-rose-400 to-orange-400 text-white px-5 py-2 rounded-full shadow-lg shadow-rose-200 text-sm font-bold hover:scale-105 active:scale-95 transition-all">
-                    START
-                </button>
-            </div>
-
-            <div id="reviewList" class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar pb-24">
-                <!-- リストはJSで生成 -->
-            </div>
-            
-            <div class="p-4 bg-white/90 border-t border-slate-100 absolute bottom-0 w-full backdrop-blur">
-                <button onclick="app.clearWrongData()" class="w-full py-3 text-slate-400 border border-dashed border-slate-300 hover:border-red-300 hover:text-red-400 rounded-xl font-bold transition-colors text-sm">
-                    <i class="fas fa-trash-alt mr-2"></i>履歴を消去
-                </button>
-            </div>
+    <!-- Blackout Curtain (Pocket Mode) -->
+    <div id="curtain" class="fixed inset-0 bg-black z-50 hidden flex flex-col items-center justify-center cursor-pointer" onclick="toggleCurtain(false)">
+        <div class="text-gray-500 text-sm animate-pulse select-none pointer-events-none mb-4">
+            <i class="fas fa-moon mr-2"></i>再生中... (画面タップで復帰)
         </div>
-
-        <!-- 設定モーダル -->
-        <div id="settingsModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
-            <div class="bg-white/90 backdrop-blur rounded-3xl p-6 w-11/12 max-w-sm shadow-2xl transform scale-95 transition-transform duration-300 border border-white/50" id="settingsContent">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-xl font-bold text-slate-700 font-fredoka">Settings</h3>
-                    <button onclick="app.closeSettings()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
-                </div>
-                
-                <div class="space-y-6">
-                    <!-- 間隔設定 -->
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2"><i class="fas fa-hourglass-half mr-1"></i>回答までの間隔</label>
-                        <div class="flex gap-2 bg-slate-100 p-1.5 rounded-2xl">
-                            <button onclick="app.setWaitTime(1000)" class="wait-btn flex-1 py-3 rounded-xl text-sm font-bold transition-all" data-val="1000">1秒</button>
-                            <button onclick="app.setWaitTime(2000)" class="wait-btn flex-1 py-3 rounded-xl text-sm font-bold transition-all" data-val="2000">2秒</button>
-                            <button onclick="app.setWaitTime(3000)" class="wait-btn flex-1 py-3 rounded-xl text-sm font-bold transition-all" data-val="3000">3秒</button>
-                        </div>
-                    </div>
-
-                    <!-- 判定モード -->
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2"><i class="fas fa-toggle-on mr-1"></i>進行モード</label>
-                        <div class="relative">
-                            <select id="judgeMode" class="w-full p-4 pl-10 border-0 bg-slate-100 rounded-2xl text-slate-700 font-bold appearance-none focus:ring-2 focus:ring-blue-400 transition-shadow">
-                                <option value="voice">音声判定 (「ヤ」で正解)</option>
-                                <option value="auto">自動進行 (聞き流し)</option>
-                            </select>
-                            <i class="fas fa-microphone-alt absolute left-4 top-4 text-blue-400 text-lg"></i>
-                            <i class="fas fa-chevron-down absolute right-4 top-4.5 text-slate-400 text-sm"></i>
-                        </div>
-                        <p class="text-xs text-slate-400 mt-2 px-1 text-center">※電車内などは「自動進行」が便利です</p>
-                    </div>
-                </div>
-
-                <button onclick="app.closeSettings()" class="mt-8 w-full bg-slate-800 text-white py-4 rounded-2xl font-bold hover:bg-slate-900 shadow-lg active:scale-95 transition-all">
-                    OK
-                </button>
-            </div>
-        </div>
-
-        <!-- ロック画面オーバーレイ -->
-        <div id="lockOverlay">
-            <div class="text-center p-8">
-                <div class="mb-8 relative inline-block">
-                    <div class="absolute inset-0 bg-blue-500 blur-2xl opacity-20 rounded-full animate-pulse"></div>
-                    <i class="fas fa-moon text-6xl text-slate-700 relative z-10"></i>
-                </div>
-                <h3 class="text-2xl font-bold text-slate-500 mb-2 font-fredoka">Sleep Mode</h3>
-                <p class="text-slate-500 text-sm mb-12 opacity-80">画面OFF・タッチ無効化中...<br>音声学習は続いています</p>
-                
-                <div class="w-64 h-24 border-2 border-dashed border-slate-800 rounded-2xl flex items-center justify-center opacity-30 mx-auto animate-pulse">
-                    <p class="text-xs font-bold tracking-widest uppercase">Double Tap to Unlock</p>
-                </div>
-            </div>
-        </div>
-
+        <div class="text-xs text-gray-800 select-none">System is active.</div>
     </div>
 
-<script>
-// --- データセット ---
-const phraseCategories = [
-    { cat: "機内・空港", phrases: [
-        ["毛布をいただけますか？", "Can I have a blanket?"],
-        ["鶏肉と牛肉、どちらにしますか？", "Chicken or beef?"],
-        ["オレンジジュースをお願いします。", "Orange juice, please."],
-        ["乗り継ぎ便に遅れそうです。", "I might miss my connecting flight."],
-        ["手荷物受取所はどこですか？", "Where is the baggage claim?"],
-        ["このバッグを機内に持ち込めますか？", "Can I carry this bag on board?"],
-        ["通路側の席をお願いします。", "Aisle seat, please."],
-        ["窓側の席をお願いします。", "Window seat, please."],
-        ["私の席はどこですか？", "Where is my seat?"],
-        ["入国カードの書き方がわかりません。", "I don't know how to fill out this card."]
-    ]},
-    { cat: "交通", phrases: [
-        ["市街地へはどう行けばいいですか？", "How do I get to the city center?"],
-        ["この電車はロンドン行きですか？", "Does this train go to London?"],
-        ["切符はどこで買えますか？", "Where can I buy a ticket?"],
-        ["ここで降ろしてください。", "Let me off here, please."],
-        ["駅までどのくらいかかりますか？", "How long does it take to the station?"],
-        ["タクシーを呼んでいただけますか？", "Could you call a taxi for me?"],
-        ["このバスは博物館に停まりますか？", "Does this bus stop at the museum?"],
-        ["地図を描いてもらえますか？", "Could you draw me a map?"],
-        ["一番近い地下鉄の駅はどこですか？", "Where is the nearest subway station?"],
-        ["運賃はいくらですか？", "How much is the fare?"]
-    ]},
-    { cat: "ホテル", phrases: [
-        ["チェックインをお願いします。", "Check in, please."],
-        ["予約しています。", "I have a reservation."],
-        ["朝食は何時ですか？", "What time is breakfast?"],
-        ["Wi-Fiのパスワードは何ですか？", "What is the Wi-Fi password?"],
-        ["お湯が出ません。", "There is no hot water."],
-        ["荷物を預かってもらえますか？", "Could you keep my baggage?"],
-        ["もっとタオルをいただけますか？", "Can I have more towels?"],
-        ["部屋がうるさすぎます。", "My room is too noisy."],
-        ["チェックアウトは何時ですか？", "What time is checkout?"],
-        ["レイトチェックアウトは可能ですか？", "Is late checkout possible?"]
-    ]},
-    { cat: "レストラン", phrases: [
-        ["2名です。", "Table for two, please."],
-        ["メニューを見せてもらえますか？", "Can I see the menu?"],
-        ["注文をお願いします。", "I'm ready to order."],
-        ["これをお願いします。", "I'll have this one."],
-        ["水をお願いします。", "Water, please."],
-        ["おすすめは何ですか？", "What do you recommend?"],
-        ["アレルギーがあります。", "I have allergies."],
-        ["辛くしないでください。", "Not too spicy, please."],
-        ["お会計をお願いします。", "Check, please."],
-        ["クレジットカードは使えますか？", "Do you accept credit cards?"]
-    ]},
-    { cat: "ショッピング", phrases: [
-        ["これを見てもいいですか？", "Can I look at this?"],
-        ["試着してもいいですか？", "Can I try it on?"],
-        ["いくらですか？", "How much is it?"],
-        ["少し高いですね。", "It's a little expensive."],
-        ["まけてもらえませんか？", "Can you give me a discount?"],
-        ["これの違う色はありますか？", "Do you have this in a different color?"],
-        ["これのLサイズはありますか？", "Do you have this in a large size?"],
-        ["贈り物用です。", "It's for a gift."],
-        ["袋をもらえますか？", "Can I have a bag?"],
-        ["ただ見ているだけです。", "I'm just looking."]
-    ]},
-    { cat: "観光・街歩き", phrases: [
-        ["写真を撮ってもらえますか？", "Could you take a picture of us?"],
-        ["トイレはどこですか？", "Where is the restroom?"],
-        ["入場料はいくらですか？", "How much is the admission fee?"],
-        ["何時に閉まりますか？", "What time do you close?"],
-        ["チケットは完売ですか？", "Are tickets sold out?"],
-        ["ここへの行き方を教えてください。", "Could you tell me how to get here?"],
-        ["歩いて行けますか？", "Can I go there on foot?"],
-        ["おすすめの観光スポットはありますか？", "Are there any recommended tourist spots?"],
-        ["並んでいますか？", "Are you in line?"],
-        ["道に迷いました。", "I'm lost."]
-    ]},
-    { cat: "緊急・トラブル", phrases: [
-        ["助けて！", "Help!"],
-        ["警察を呼んでください。", "Call the police."],
-        ["救急車を呼んでください。", "Call an ambulance."],
-        ["パスポートをなくしました。", "I lost my passport."],
-        ["財布を盗まれました。", "My wallet was stolen."],
-        ["気分が悪いです。", "I feel sick."],
-        ["頭が痛いです。", "I have a headache."],
-        ["病院はどこですか？", "Where is the hospital?"],
-        ["日本語を話せる人はいますか？", "Does anyone speak Japanese?"],
-        ["日本大使館に連絡したいです。", "I want to contact the Japanese Embassy."]
-    ]}
-];
+    <!-- Header & Status -->
+    <header class="w-full max-w-md flex justify-between items-center mb-4">
+        <h1 class="text-xl font-bold text-blue-400"><i class="fas fa-headphones mr-2"></i>Travel English</h1>
+        <div class="text-xs text-gray-400 flex flex-col items-end">
+            <span id="wakeLockStatus" class="wake-lock-inactive"><i class="fas fa-lightbulb mr-1"></i>画面維持: OFF</span>
+        </div>
+    </header>
 
-// データ生成
-let masterPhrases = [];
-phraseCategories.forEach(cat => {
-    cat.phrases.forEach(p => masterPhrases.push({ jp: p[0], en: p[1], category: cat.cat }));
-});
-while(masterPhrases.length < 200) {
-    masterPhrases = masterPhrases.concat(masterPhrases.slice(0, 200 - masterPhrases.length));
-}
+    <!-- Course Selection -->
+    <div class="w-full max-w-md mb-6 bg-gray-800 p-2 rounded-lg flex items-center justify-between">
+        <label class="text-sm text-gray-300 font-bold ml-2">コース:</label>
+        <select id="partSelector" onchange="changePart()" class="bg-gray-700 text-white text-sm rounded-md p-2 border border-gray-600 focus:ring-blue-500 focus:border-blue-500 block w-2/3">
+            <option value="part1">パート1：基本の200</option>
+            <option value="part2">パート2：応用の200</option>
+        </select>
+    </div>
 
-// --- App Class ---
-
-class LearningApp {
-    constructor() {
-        this.phrases = [...masterPhrases];
-        this.wrongPhrases = JSON.parse(localStorage.getItem('wrongPhrases')) || [];
-        this.currentIndex = 0;
-        this.isPlaying = false;
-        this.isReviewMode = false;
-        this.wakeLock = null;
+    <!-- Main Card -->
+    <main class="w-full max-w-md flex-grow flex flex-col justify-center">
         
-        // Settings
-        this.settings = {
-            rate: 1.0,
-            waitTime: 2000,
-            mode: 'voice'
-        };
+        <!-- Progress Bar -->
+        <div class="w-full bg-gray-700 rounded-full h-2.5 mb-4">
+            <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+        </div>
+        <div class="text-center text-sm text-gray-400 mb-6">
+            <span id="courseNameDisplay" class="font-bold text-blue-300 mr-2">Part 1</span>
+            Phrase: <span id="currentIndex">1</span> / <span id="totalCount">200</span>
+        </div>
 
-        // TTS & Recognition
-        this.synth = window.speechSynthesis;
-        this.jpVoice = null;
-        this.enVoice = null;
-        this.recognition = null;
-        this.initRecognition();
-
-        // UI References
-        this.ui = {
-            jpText: document.getElementById('jpText'),
-            enText: document.getElementById('enText'),
-            playBtn: document.getElementById('playBtn'),
-            micStatus: document.getElementById('micStatus'),
-            resultOverlay: document.getElementById('resultOverlay'),
-            resultIcon: document.getElementById('resultIcon'),
-            resultIconContainer: document.getElementById('resultIconContainer'),
-            progressText: document.getElementById('progressText'),
-            progressBar: document.getElementById('progressBar'),
-            wrongCount: document.getElementById('wrongCount'),
-            reviewBtn: document.getElementById('reviewBtn'),
-            rateRange: document.getElementById('rateRange'),
-            speedDisplay: document.getElementById('speedDisplay'),
-            modeBadge: document.getElementById('modeBadge')
-        };
-
-        this.updateWrongCount();
-        this.updateProgress();
-        
-        // Load Voices
-        this.loadVoices();
-        if (speechSynthesis.onvoiceschanged !== undefined) {
-            speechSynthesis.onvoiceschanged = () => this.loadVoices();
-        }
-
-        // Initialize Settings UI
-        this.setWaitTime(2000); 
-
-        // Event Listeners
-        this.ui.rateRange.addEventListener('input', (e) => {
-            this.settings.rate = parseFloat(e.target.value);
-            this.ui.speedDisplay.textContent = `x${this.settings.rate.toFixed(1)}`;
-        });
-
-        document.getElementById('judgeMode').addEventListener('change', (e) => {
-            this.settings.mode = e.target.value;
-        });
-
-        // Unlock gestures
-        let lastTap = 0;
-        document.getElementById('lockOverlay').addEventListener('touchstart', (e) => {
-            const currentTime = new Date().getTime();
-            const tapLength = currentTime - lastTap;
-            if (tapLength < 500 && tapLength > 0) {
-                this.deactivateLockMode();
-                e.preventDefault();
-            }
-            lastTap = currentTime;
-        });
-        document.getElementById('lockOverlay').addEventListener('dblclick', () => {
-            this.deactivateLockMode();
-        });
-    }
-
-    initRecognition() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
-            this.recognition = new SpeechRecognition();
-            this.recognition.lang = 'en-US'; 
-            this.recognition.continuous = false;
-            this.recognition.interimResults = false;
-            this.recognition.maxAlternatives = 1;
-        } else {
-            console.warn("Speech Recognition not supported");
-            this.settings.mode = 'auto';
-        }
-    }
-
-    loadVoices() {
-        const voices = this.synth.getVoices();
-        if (voices.length === 0) return;
-        this.jpVoice = voices.find(v => v.lang === 'ja-JP' && v.name.includes('Google')) || voices.find(v => v.lang === 'ja-JP');
-        this.enVoice = voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) || voices.find(v => v.lang === 'en-US');
-    }
-
-    togglePlay() {
-        if (this.isPlaying) {
-            this.stop();
-        } else {
-            this.play();
-        }
-    }
-
-    stop() {
-        this.isPlaying = false;
-        this.synth.cancel();
-        if(this.recognition) {
-            try { this.recognition.stop(); } catch(e){}
-        }
-        clearTimeout(this.loopTimeout);
-        
-        // Stop UI
-        const btnContent = `<i class="fas fa-play text-4xl ml-2 drop-shadow-md"></i>`;
-        this.ui.playBtn.innerHTML = btnContent;
-        this.ui.playBtn.classList.remove('from-rose-400', 'via-rose-500', 'to-orange-500', 'animate-pulse');
-        this.ui.playBtn.classList.add('from-blue-400', 'via-blue-500', 'to-indigo-600');
-        
-        this.ui.micStatus.innerHTML = '<i class="fas fa-microphone-slash text-slate-400"></i> <span class="tracking-wide">待機中</span>';
-        this.ui.micStatus.classList.remove('bg-rose-100', 'text-rose-600', 'border-rose-200', 'pulse-mic');
-        this.ui.micStatus.classList.add('text-slate-500');
-    }
-
-    async play() {
-        if (this.phrases.length === 0) return;
-        
-        this.synth.cancel();
-        this.isPlaying = true;
-
-        // Play UI
-        const btnContent = `<i class="fas fa-stop text-4xl drop-shadow-md"></i>`;
-        this.ui.playBtn.innerHTML = btnContent;
-        this.ui.playBtn.classList.remove('from-blue-400', 'via-blue-500', 'to-indigo-600');
-        this.ui.playBtn.classList.add('from-rose-400', 'via-rose-500', 'to-orange-500');
-
-        await this.requestWakeLock();
-        this.loopSequence();
-    }
-
-    async loopSequence() {
-        if (!this.isPlaying) return;
-
-        // Reset UI
-        this.ui.enText.style.opacity = '0';
-        this.ui.enText.classList.remove('translate-y-0');
-        this.ui.enText.classList.add('translate-y-2');
-        
-        this.ui.resultOverlay.classList.add('hidden');
-        this.ui.resultIconContainer.classList.remove('scale-100');
-        this.ui.resultIconContainer.classList.add('scale-0');
-        
-        const currentList = this.isReviewMode ? this.wrongPhrases : this.phrases;
-        
-        if (this.currentIndex >= currentList.length) {
-            this.currentIndex = 0;
-            if(this.isReviewMode) {
-                alert("復習完了！Great Job!");
-                this.stop();
-                return;
-            }
-        }
-
-        const item = currentList[this.currentIndex];
-        
-        this.ui.jpText.textContent = item.jp;
-        this.ui.enText.textContent = item.en;
-        this.ui.progressText.textContent = `Q. ${this.currentIndex + 1} / ${currentList.length}`;
-        this.updateProgress(currentList.length);
-
-        // 1. Japanese
-        await this.speak(item.jp, 'ja');
-        
-        if (!this.isPlaying) return;
-
-        // 2. Wait
-        await this.wait(this.settings.waitTime);
-
-        if (!this.isPlaying) return;
-
-        // 3. English
-        this.ui.enText.style.opacity = '1';
-        this.ui.enText.classList.remove('translate-y-2');
-        this.ui.enText.classList.add('translate-y-0');
-        
-        await this.speak(item.en, 'en');
-
-        if (!this.isPlaying) return;
-
-        // 4. Judge
-        if (this.settings.mode === 'voice' && this.recognition) {
-            await this.listenForAnswer(item);
-        } else {
-            await this.wait(1500); 
-            this.next();
-        }
-    }
-
-    updateProgress(total = 200) {
-        const percent = ((this.currentIndex + 1) / total) * 100;
-        this.ui.progressBar.style.width = `${percent}%`;
-    }
-
-    speak(text, lang) {
-        return new Promise((resolve) => {
-            if (!this.isPlaying) { resolve(); return; }
-            if (!this.jpVoice || !this.enVoice) this.loadVoices();
-
-            const utter = new SpeechSynthesisUtterance(text);
-            const targetVoice = lang === 'ja' ? this.jpVoice : this.enVoice;
-
-            if (targetVoice) utter.voice = targetVoice;
-            else utter.lang = lang === 'ja' ? 'ja-JP' : 'en-US';
+        <!-- Phrase Card -->
+        <div id="card" class="bg-gray-800 p-8 rounded-2xl border-2 border-gray-700 flex flex-col items-center justify-center min-h-[300px] transition-all duration-300 relative">
+            <div id="japaneseText" class="text-xl md:text-2xl font-bold mb-8 text-center text-white leading-relaxed">
+                再生ボタンを押して開始
+            </div>
             
-            utter.rate = this.settings.rate;
+            <!-- Hidden/Revealed English Answer -->
+            <div id="englishArea" class="opacity-0 transition-opacity duration-500 text-center w-full">
+                <div id="englishText" class="text-lg md:text-xl text-yellow-400 font-medium mb-2 leading-relaxed break-words">
+                    Ready?
+                </div>
+            </div>
+
+            <!-- Auto Play Indicator -->
+            <div id="statusIndicator" class="absolute bottom-4 right-4 text-xs text-gray-500">
+                <i class="fas fa-forward mr-1"></i>Auto
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="mt-8 grid grid-cols-2 gap-4 w-full">
+            <button id="toggleBtn" onclick="togglePlay()" class="col-span-2 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition-transform active:scale-95">
+                <i class="fas fa-play mr-2"></i>再生スタート
+            </button>
+
+            <!-- Pocket Mode -->
+            <button onclick="toggleCurtain(true)" class="col-span-2 bg-gray-800 hover:bg-gray-700 text-gray-300 py-3 rounded-lg font-semibold border border-gray-600 active:scale-95 flex justify-center items-center">
+                <i class="fas fa-moon mr-2"></i>画面を暗くする (ポケットモード)
+            </button>
+
+            <!-- Manual Navigation -->
+            <button onclick="skip(-1)" class="bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold active:scale-95">
+                <i class="fas fa-backward mr-2"></i>戻る
+            </button>
+            <button onclick="skip(1)" class="bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold active:scale-95">
+                進む<i class="fas fa-forward ml-2"></i>
+            </button>
+        </div>
+
+    </main>
+
+    <script>
+        // --- Data: Part 1 (Basic 200) ---
+        const rawPhrasesPart1 = [
+            { ja: "チェックインをお願いします。", en: "Check-in, please." },
+            { ja: "予約しています。", en: "I have a reservation." },
+            { ja: "パスポートを見せてください。", en: "Show me your passport, please." },
+            { ja: "私の部屋はどこですか？", en: "Where is my room?" },
+            { ja: "朝食は何時ですか？", en: "What time is breakfast?" },
+            { ja: "Wi-Fiのパスワードは何ですか？", en: "What is the Wi-Fi password?" },
+            { ja: "荷物を預かってもらえますか？", en: "Can you keep my baggage?" },
+            { ja: "タクシーを呼んでもらえますか？", en: "Can you call a taxi for me?" },
+            { ja: "近くにお勧めのレストランはありますか？", en: "Are there any recommended restaurants nearby?" },
+            { ja: "チェックアウトをお願いします。", en: "Check-out, please." },
+            { ja: "メニューを見せてください。", en: "Can I see the menu, please?" },
+            { ja: "これをください。", en: "I'll have this." },
+            { ja: "水をお願いします。", en: "Water, please." },
+            { ja: "お会計をお願いします。", en: "Check, please." },
+            { ja: "クレジットカードは使えますか？", en: "Do you accept credit cards?" },
+            { ja: "トイレはどこですか？", en: "Where is the restroom?" },
+            { ja: "このバスは市内に行きますか？", en: "Does this bus go to the city center?" },
+            { ja: "ここで降ろしてください。", en: "Let me off here, please." },
+            { ja: "地図をもらえますか？", en: "Can I have a map?" },
+            { ja: "写真を撮ってもらえますか？", en: "Can you take a picture of me?" },
+            { ja: "助けてください！", en: "Help!" },
+            { ja: "日本語を話せる人はいますか？", en: "Is there anyone who speaks Japanese?" },
+            { ja: "気分が悪いです。", en: "I feel sick." },
+            { ja: "病院はどこですか？", en: "Where is the hospital?" },
+            { ja: "いくらですか？", en: "How much is it?" },
+            { ja: "高すぎます。", en: "It's too expensive." },
+            { ja: "安くしてもらえませんか？", en: "Can you give me a discount?" },
+            { ja: "試着してもいいですか？", en: "Can I try it on?" },
+            { ja: "これの別の色はありますか？", en: "Do you have this in another color?" },
+            { ja: "ただ見ているだけです。", en: "I'm just looking." },
+            { ja: "搭乗口はどこですか？", en: "Where is the boarding gate?" },
+            { ja: "乗り継ぎカウンターはどこですか？", en: "Where is the connecting flight counter?" },
+            { ja: "荷物が出てきません。", en: "My baggage hasn't come out." },
+            { ja: "両替所はどこですか？", en: "Where is the currency exchange?" },
+            { ja: "地下鉄の駅はどこですか？", en: "Where is the subway station?" },
+            { ja: "切符売り場はどこですか？", en: "Where is the ticket office?" },
+            { ja: "この席は空いていますか？", en: "Is this seat taken?" },
+            { ja: "少しゆっくり話してください。", en: "Please speak a little slower." },
+            { ja: "もう一度言ってください。", en: "Could you say that again?" },
+            { ja: "書いてもらえますか？", en: "Could you write it down?" },
+            { ja: "意味がわかりません。", en: "I don't understand." },
+            { ja: "結構です（断り）。", en: "No, thank you." },
+            { ja: "はい、お願いします。", en: "Yes, please." },
+            { ja: "すみません（呼びかけ）。", en: "Excuse me." },
+            { ja: "ごめんなさい。", en: "I'm sorry." },
+            { ja: "どういたしまして。", en: "You're welcome." },
+            { ja: "楽しい時間を過ごしました。", en: "I had a great time." },
+            { ja: "また会いましょう。", en: "See you again." },
+            { ja: "持ち帰りにできますか？", en: "Can I have it to go?" },
+            { ja: "お釣りはいりません。", en: "Keep the change." },
+            { ja: "領収書をください。", en: "Receipt, please." },
+            { ja: "予約していません。", en: "I don't have a reservation." },
+            { ja: "窓側の席がいいです。", en: "I'd like a window seat." },
+            { ja: "通路側の席がいいです。", en: "I'd like an aisle seat." },
+            { ja: "禁煙席をお願いします。", en: "Non-smoking table, please." },
+            { ja: "アレルギーがあります。", en: "I have an allergy." },
+            { ja: "ナッツ抜きにできますか？", en: "Can you make it without nuts?" },
+            { ja: "おすすめは何ですか？", en: "What do you recommend?" },
+            { ja: "どのくらい待ちますか？", en: "How long is the wait?" },
+            { ja: "もう注文しました。", en: "We've already ordered." },
+            { ja: "まだ食べています。", en: "I'm still eating." },
+            { ja: "お皿を下げてもらえますか？", en: "Can you clear the table?" },
+            { ja: "別々に払えますか？", en: "Can we pay separately?" },
+            { ja: "コンビニはどこですか？", en: "Where is a convenience store?" },
+            { ja: "ATMはどこですか？", en: "Where is an ATM?" },
+            { ja: "一番近い駅はどこですか？", en: "Where is the nearest station?" },
+            { ja: "ここに行きたいのですが。", en: "I'd like to go here." },
+            { ja: "歩いて行けますか？", en: "Can I walk there?" },
+            { ja: "どのくらい時間がかかりますか？", en: "How long does it take?" },
+            { ja: "右に曲がってください。", en: "Turn right." },
+            { ja: "左に曲がってください。", en: "Turn left." },
+            { ja: "まっすぐ行ってください。", en: "Go straight." },
+            { ja: "角を曲がったところにあります。", en: "It's around the corner." },
+            { ja: "迷子になりました。", en: "I'm lost." },
+            { ja: "警察を呼んでください。", en: "Call the police." },
+            { ja: "救急車を呼んでください。", en: "Call an ambulance." },
+            { ja: "財布を盗まれました。", en: "My wallet was stolen." },
+            { ja: "パスポートをなくしました。", en: "I lost my passport." },
+            { ja: "大使館はどこですか？", en: "Where is the embassy?" },
+            { ja: "電話を貸してもらえますか？", en: "Can I use your phone?" },
+            { ja: "シャワーのお湯が出ません。", en: "There is no hot water in the shower." },
+            { ja: "エアコンが動きません。", en: "The air conditioner doesn't work." },
+            { ja: "隣の部屋がうるさいです。", en: "The room next door is noisy." },
+            { ja: "タオルを交換してください。", en: "Please change the towels." },
+            { ja: "部屋を掃除してください。", en: "Please clean my room." },
+            { ja: "起こさないでください。", en: "Do not disturb." },
+            { ja: "鍵を部屋に忘れました。", en: "I left my key in the room." },
+            { ja: "アイロンを貸してもらえますか？", en: "Can I borrow an iron?" },
+            { ja: "ドライヤーはありますか？", en: "Do you have a hair dryer?" },
+            { ja: "タクシー乗り場はどこですか？", en: "Where is the taxi stand?" },
+            { ja: "トランクを開けてください。", en: "Open the trunk, please." },
+            { ja: "ここで待っていてください。", en: "Please wait here." },
+            { ja: "急いでください。", en: "Please hurry." },
+            { ja: "空港までお願いします。", en: "To the airport, please." },
+            { ja: "お釣りは取っておいてください。", en: "Keep the change." },
+            { ja: "免税になりますか？", en: "Is this duty-free?" },
+            { ja: "袋をください。", en: "Can I have a bag?" },
+            { ja: "ギフトラッピングをお願いします。", en: "Gift wrap, please." },
+            { ja: "大きいサイズはありますか？", en: "Do you have a larger size?" },
+            { ja: "小さいサイズはありますか？", en: "Do you have a smaller size?" },
+            { ja: "日本円で払えますか？", en: "Can I pay in Japanese Yen?" },
+            { ja: "両替レートはいくらですか？", en: "What is the exchange rate?" },
+            { ja: "小銭を混ぜてくれますか？", en: "Can you include some small change?" },
+            { ja: "美術館は何時に開きますか？", en: "What time does the museum open?" },
+            { ja: "閉館時間はいつですか？", en: "When is the closing time?" },
+            { ja: "入場料はいくらですか？", en: "How much is the admission fee?" },
+            { ja: "学生割引はありますか？", en: "Is there a student discount?" },
+            { ja: "写真を撮ってもいいですか？", en: "Can I take pictures?" },
+            { ja: "フラッシュは禁止です。", en: "No flash allowed." },
+            { ja: "ガイドツアーはありますか？", en: "Are there guided tours?" },
+            { ja: "日本語のパンフレットはありますか？", en: "Do you have a Japanese brochure?" },
+            { ja: "出口はどこですか？", en: "Where is the exit?" },
+            { ja: "入り口はどこですか？", en: "Where is the entrance?" },
+            { ja: "エレベーターはどこですか？", en: "Where is the elevator?" },
+            { ja: "エスカレーターはどこですか？", en: "Where is the escalator?" },
+            { ja: "喫煙所はどこですか？", en: "Where is the smoking area?" },
+            { ja: "飲み水をくれませんか？", en: "Can I have some drinking water?" },
+            { ja: "氷なしでお願いします。", en: "No ice, please." },
+            { ja: "塩をください。", en: "Salt, please." },
+            { ja: "砂糖をください。", en: "Sugar, please." },
+            { ja: "フォークを落としました。", en: "I dropped my fork." },
+            { ja: "新しいものを持ってきてください。", en: "Please bring me a new one." },
+            { ja: "とても美味しかったです。", en: "It was delicious." },
+            { ja: "満席です。", en: "We are full." },
+            { ja: "何名様ですか？", en: "How many people?" },
+            { ja: "2人です。", en: "Two people." },
+            { ja: "4人です。", en: "Four people." },
+            { ja: "子供用の椅子はありますか？", en: "Do you have a high chair?" },
+            { ja: "ベジタリアン料理はありますか？", en: "Do you have vegetarian dishes?" },
+            { ja: "豚肉は入っていますか？", en: "Does this contain pork?" },
+            { ja: "牛肉は食べられません。", en: "I cannot eat beef." },
+            { ja: "生ビールをください。", en: "Draft beer, please." },
+            { ja: "グラスワインをください。", en: "A glass of wine, please." },
+            { ja: "乾杯！", en: "Cheers!" },
+            { ja: "お腹がいっぱいです。", en: "I'm full." },
+            { ja: "これは何ですか？", en: "What is this?" },
+            { ja: "辛いですか？", en: "Is it spicy?" },
+            { ja: "甘いですか？", en: "Is it sweet?" },
+            { ja: "酸っぱいですか？", en: "Is it sour?" },
+            { ja: "苦いですか？", en: "Is it bitter?" },
+            { ja: "熱いです。", en: "It's hot." },
+            { ja: "冷たいです。", en: "It's cold." },
+            { ja: "いつ出発しますか？", en: "When does it leave?" },
+            { ja: "いつ到着しますか？", en: "When does it arrive?" },
+            { ja: "遅れています。", en: "It's delayed." },
+            { ja: "キャンセルされました。", en: "It's cancelled." },
+            { ja: "どのホームですか？", en: "Which platform?" },
+            { ja: "往復切符をください。", en: "Round trip ticket, please." },
+            { ja: "片道切符をください。", en: "One way ticket, please." },
+            { ja: "指定席をお願いします。", en: "Reserved seat, please." },
+            { ja: "自由席でいいです。", en: "Non-reserved seat is fine." },
+            { ja: "この電車は〇〇に止まりますか？", en: "Does this train stop at OO?" },
+            { ja: "次の駅は何ですか？", en: "What is the next station?" },
+            { ja: "乗り換えが必要です。", en: "You need to transfer." },
+            { ja: "どこで乗り換えですか？", en: "Where do I transfer?" },
+            { ja: "ドアが閉まります。", en: "Doors closing." },
+            { ja: "ご注意ください。", en: "Please be careful." },
+            { ja: "忘れ物をしました。", en: "I left something behind." },
+            { ja: "落とし物センターはどこですか？", en: "Where is the lost and found?" },
+            { ja: "名前は何ですか？", en: "What is your name?" },
+            { ja: "日本から来ました。", en: "I'm from Japan." },
+            { ja: "初めてここに来ました。", en: "This is my first time here." },
+            { ja: "一人旅です。", en: "I'm traveling alone." },
+            { ja: "家族と一緒です。", en: "I'm with my family." },
+            { ja: "友達と一緒です。", en: "I'm with my friends." },
+            { ja: "ここに住んでいますか？", en: "Do you live here?" },
+            { ja: "お仕事は何ですか？", en: "What do you do?" },
+            { ja: "趣味は何ですか？", en: "What is your hobby?" },
+            { ja: "Facebookをやっていますか？", en: "Are you on Facebook?" },
+            { ja: "Instagramをやっていますか？", en: "Are you on Instagram?" },
+            { ja: "連絡先を教えてもらえますか？", en: "Can I have your contact info?" },
+            { ja: "英語は少ししか話せません。", en: "I only speak a little English." },
+            { ja: "もっと勉強します。", en: "I will study more." },
+            { ja: "良い旅を！", en: "Have a nice trip!" },
+            { ja: "気をつけて。", en: "Take care." },
+            { ja: "お大事に。", en: "Get well soon." },
+            { ja: "おめでとう。", en: "Congratulations." },
+            { ja: "残念ですね。", en: "That's too bad." },
+            { ja: "すごい！", en: "Amazing!" },
+            { ja: "本当ですか？", en: "Really?" },
+            { ja: "冗談でしょう？", en: "You're kidding!" },
+            { ja: "もちろん。", en: "Of course." },
+            { ja: "多分。", en: "Maybe." },
+            { ja: "わかりました。", en: "I see." },
+            { ja: "問題ありません。", en: "No problem." },
+            { ja: "気にしないでください。", en: "Don't worry about it." },
+            { ja: "手伝いましょうか？", en: "Can I help you?" },
+            { ja: "良い天気ですね。", en: "It's nice weather." },
+            { ja: "雨が降っています。", en: "It's raining." },
+            { ja: "寒いです。", en: "It's cold." },
+            { ja: "暑いです。", en: "It's hot." },
+            { ja: "雪が降っています。", en: "It's snowing." },
+            { ja: "傘を持っていません。", en: "I don't have an umbrella." },
+            { ja: "濡れました。", en: "I got wet." },
+            { ja: "乾かしたいです。", en: "I want to dry this." },
+            { ja: "洗濯機はありますか？", en: "Is there a washing machine?" },
+            { ja: "洗剤はありますか？", en: "Do you have detergent?" },
+            { ja: "コインランドリーを探しています。", en: "I'm looking for a laundromat." }
+        ];
+
+        // --- Data: Part 2 (Advanced 200) ---
+        const rawPhrasesPart2 = [
+            { ja: "オンラインチェックインは済ませています。", en: "I've already checked in online." },
+            { ja: "もっと早い便に変更できますか？", en: "Could I change to an earlier flight?" },
+            { ja: "壊れ物が入っています。", en: "There are fragile items inside." },
+            { ja: "座席をリクライニングしてもいいですか？", en: "Do you mind if I recline my seat?" },
+            { ja: "入国カードの書き方がわかりません。", en: "I don't know how to fill out the arrival card." },
+            { ja: "滞在目的は観光です。", en: "I'm here for sightseeing." },
+            { ja: "5日間滞在する予定です。", en: "I plan to stay for 5 days." },
+            { ja: "これが帰りのチケットです。", en: "This is my return ticket." },
+            { ja: "荷物が出てきません。確認してもらえますか？", en: "My luggage hasn't come out. Could you check?" },
+            { ja: "スーツケースのキャスターが壊れています。", en: "The wheel on my suitcase is broken." },
+            { ja: "乗り継ぎ時間が1時間しかありません。", en: "I only have a one-hour layover." },
+            { ja: "市内への一番早い行き方は何ですか？", en: "What's the fastest way to the city?" },
+            { ja: "シャトルバス乗り場はどこですか？", en: "Where is the shuttle bus stop?" },
+            { ja: "この住所へ行きたいのですが。", en: "I'd like to go to this address." },
+            { ja: "トランクに荷物を入れてもらえますか？", en: "Could you put my bags in the trunk?" },
+            { ja: "そこまでどのくらいかかりますか？", en: "How long will it take to get there?" },
+            { ja: "ここで降ろしてください。残りは歩きます。", en: "Please drop me here. I'll walk the rest." },
+            { ja: "メーターを動かしてください。", en: "Please turn on the meter." },
+            { ja: "予約より少し早く着きそうです。", en: "I think I'll arrive a little earlier than my reservation." },
+            { ja: "到着が遅れます。", en: "I'm running late." },
+            { ja: "眺めの良い部屋をお願いできますか？", en: "Could I have a room with a view?" },
+            { ja: "静かな部屋をお願いします。", en: "I'd like a quiet room, please." },
+            { ja: "エキストラベッドを追加できますか？", en: "Could we add an extra bed?" },
+            { ja: "朝食を部屋に持ってきてもらえますか？", en: "Could I have breakfast in my room?" },
+            { ja: "金庫の使い方がわかりません。", en: "I don't know how to use the safe." },
+            { ja: "シャワーの水圧が弱いです。", en: "The water pressure in the shower is weak." },
+            { ja: "トイレが詰まりました。", en: "The toilet is clogged." },
+            { ja: "部屋が掃除されていません。", en: "My room hasn't been cleaned." },
+            { ja: "チェックアウトを1時間延長できますか？", en: "Could I extend my check-out by an hour?" },
+            { ja: "荷物を夕方まで預かってもらえますか？", en: "Could you keep my bags until this evening?" },
+            { ja: "近くにコンビニはありますか？", en: "Is there a convenience store nearby?" },
+            { ja: "おすすめの地元料理のレストランはありますか？", en: "Are there any restaurants that serve local food?" },
+            { ja: "予約をキャンセルしたいのですが。", en: "I'd like to cancel my reservation." },
+            { ja: "テラス席は空いていますか？", en: "Is there a table available on the terrace?" },
+            { ja: "子供用のメニューはありますか？", en: "Do you have a kids' menu?" },
+            { ja: "料理が出てくるのが遅いです。", en: "The food is coming out very slowly." },
+            { ja: "注文したものがまだ来ません。", en: "My order hasn't arrived yet." },
+            { ja: "これは注文していません。", en: "I didn't order this." },
+            { ja: "お会計が間違っているようです。", en: "I think there is a mistake on the bill." },
+            { ja: "この料理には何が入っていますか？", en: "What are the ingredients in this dish?" },
+            { ja: "パクチーを抜いてもらえますか？", en: "Could you leave out the coriander?" },
+            { ja: "ドレッシングを別添えにできますか？", en: "Could I have the dressing on the side?" },
+            { ja: "辛さを控えめにしてもらえますか？", en: "Could you make it less spicy?" },
+            { ja: "お水をもう一杯いただけますか？", en: "Could I have another glass of water?" },
+            { ja: "取り皿を何枚かいただけますか？", en: "Could we have some small plates to share?" },
+            { ja: "残った料理を持ち帰れますか？", en: "Can I take the leftovers home?" },
+            { ja: "クレジットカードの暗証番号を忘れました。", en: "I forgot my credit card PIN." },
+            { ja: "現金でお釣りをもらえますか？", en: "Can I get the change in cash?" },
+            { ja: "チップは含まれていますか？", en: "Is the tip included?" },
+            { ja: "割り勘にしてもらえますか？", en: "Could we split the bill?" },
+            { ja: "このカードは使えませんでした。", en: "This card didn't work." },
+            { ja: "一日乗車券はありますか？", en: "Do you have a one-day pass?" },
+            { ja: "路線図をもらえますか？", en: "Could I have a route map?" },
+            { ja: "次の電車は何時ですか？", en: "What time is the next train?" },
+            { ja: "終電は何時ですか？", en: "What time is the last train?" },
+            { ja: "このチケットは払い戻しできますか？", en: "Is this ticket refundable?" },
+            { ja: "乗り越してしまいました。", en: "I missed my stop." },
+            { ja: "反対方向の電車に乗ってしまいました。", en: "I took the train in the wrong direction." },
+            { ja: "このバス停には止まりますか？", en: "Does it stop at this bus stop?" },
+            { ja: "博物館への行き方を教えてください。", en: "Could you tell me how to get to the museum?" },
+            { ja: "歩いてどのくらいかかりますか？", en: "How long does it take on foot?" },
+            { ja: "地図で場所を指してもらえますか？", en: "Could you point it out on the map?" },
+            { ja: "この辺りで一番有名な観光地はどこですか？", en: "What is the most famous sightseeing spot around here?" },
+            { ja: "入場制限はありますか？", en: "Is there an entry limit?" },
+            { ja: "再入場はできますか？", en: "Can I re-enter?" },
+            { ja: "音声ガイドはありますか？", en: "Do you have an audio guide?" },
+            { ja: "ロッカーはどこにありますか？", en: "Where are the lockers?" },
+            { ja: "ベビーカーを借りることはできますか？", en: "Can I rent a stroller?" },
+            { ja: "ここで飲食してもいいですか？", en: "Is eating and drinking allowed here?" },
+            { ja: "列に並んでいますか？", en: "Are you in line?" },
+            { ja: "この席を使ってもいいですか？", en: "Do you mind if I use this seat?" },
+            { ja: "写真を撮りましょうか？", en: "Shall I take a picture for you?" },
+            { ja: "もう一枚撮ってもらえますか？", en: "Could you take one more, please?" },
+            { ja: "縦向きで撮ってください。", en: "Please take it vertically." },
+            { ja: "横向きで撮ってください。", en: "Please take it horizontally." },
+            { ja: "Wi-Fiが繋がりません。", en: "The Wi-Fi isn't connecting." },
+            { ja: "充電器を貸してもらえますか？", en: "Could I borrow a charger?" },
+            { ja: "コンセントを使ってもいいですか？", en: "May I use the outlet?" },
+            { ja: "SIMカードを入れ替えたいのですが。", en: "I'd like to switch my SIM card." },
+            { ja: "データ通信が動きません。", en: "My data isn't working." },
+            { ja: "近くに薬局はありますか？", en: "Is there a pharmacy nearby?" },
+            { ja: "頭痛薬が欲しいのですが。", en: "I'd like some headache medicine." },
+            { ja: "風邪をひいたみたいです。", en: "I think I caught a cold." },
+            { ja: "日焼け止めはありますか？", en: "Do you have sunscreen?" },
+            { ja: "絆創膏を持っていますか？", en: "Do you have a band-aid?" },
+            { ja: "虫除けスプレーはありますか？", en: "Do you have insect repellent?" },
+            { ja: "救急車を呼んでください！", en: "Please call an ambulance!" },
+            { ja: "警察署はどこですか？", en: "Where is the police station?" },
+            { ja: "盗難届を出したいのですが。", en: "I'd like to report a theft." },
+            { ja: "落とし物をしました。", en: "I lost something." },
+            { ja: "これが私の連絡先です。", en: "This is my contact information." },
+            { ja: "もし見つかったら連絡してください。", en: "Please contact me if it's found." },
+            { ja: "少し安くしてくれませんか？", en: "Could you give me a little discount?" },
+            { ja: "2つ買ったら安くなりますか？", en: "Is it cheaper if I buy two?" },
+            { ja: "予算オーバーです。", en: "It's over my budget." },
+            { ja: "他のお店も見てみます。", en: "I'll look around other shops." },
+            { ja: "新しい在庫はありますか？", en: "Do you have a new one in stock?" },
+            { ja: "試着室はどこですか？", en: "Where is the fitting room?" },
+            { ja: "サイズが合いません。", en: "The size doesn't fit." },
+            { ja: "ズボンの裾上げはできますか？", en: "Can you hem these pants?" },
+            { ja: "配送してもらえますか？", en: "Can you ship this?" },
+            { ja: "日本に送れますか？", en: "Can you ship this to Japan?" },
+            { ja: "返品はできますか？", en: "Can I return this?" },
+            { ja: "交換はできますか？", en: "Can I exchange this?" },
+            { ja: "レシートをなくしてしまいました。", en: "I lost the receipt." },
+            { ja: "これはギフト用です。", en: "This is a gift." },
+            { ja: "個別に包んでもらえますか？", en: "Could you wrap them separately?" },
+            { ja: "地元の名産品は何ですか？", en: "What is the local specialty?" },
+            { ja: "賞味期限はいつですか？", en: "When is the expiration date?" },
+            { ja: "常温で保存できますか？", en: "Can I store this at room temperature?" },
+            { ja: "おすすめのお土産はありますか？", en: "Do you have any recommendations for souvenirs?" },
+            { ja: "ここでしか買えないものはありますか？", en: "Is there anything I can only buy here?" },
+            { ja: "写真をSNSに載せてもいいですか？", en: "Can I post this photo on social media?" },
+            { ja: "アカウントを教えてもらえますか？", en: "Could you tell me your account?" },
+            { ja: "タグ付けしてもいいですか？", en: "Can I tag you?" },
+            { ja: "この景色は素晴らしいですね。", en: "This view is amazing." },
+            { ja: "雰囲気がとても良いですね。", en: "The atmosphere is very nice." },
+            { ja: "あなたの服、素敵ですね。", en: "I like your outfit." },
+            { ja: "親切にしてくれてありがとう。", en: "Thank you for being so kind." },
+            { ja: "あなたのおかげで助かりました。", en: "You saved me." },
+            { ja: "またここに来たいです。", en: "I want to come here again." },
+            { ja: "日本に来たことはありますか？", en: "Have you ever been to Japan?" },
+            { ja: "日本食は好きですか？", en: "Do you like Japanese food?" },
+            { ja: "おすすめの日本の場所を教えましょうか？", en: "Shall I tell you some recommended places in Japan?" },
+            { ja: "お名前を伺ってもいいですか？", en: "May I ask your name?" },
+            { ja: "どのくらいここに住んでいますか？", en: "How long have you lived here?" },
+            { ja: "週末は何をしていますか？", en: "What do you do on weekends?" },
+            { ja: "何かおすすめの音楽はありますか？", en: "Do you have any music recommendations?" },
+            { ja: "これはどういう意味ですか？", en: "What does this mean?" },
+            { ja: "発音を教えてもらえますか？", en: "Could you tell me the pronunciation?" },
+            { ja: "少し急いでいます。", en: "I'm in a bit of a hurry." },
+            { ja: "後でまた来ます。", en: "I'll come back later." },
+            { ja: "気にしないでください。", en: "Never mind." },
+            { ja: "それは知りませんでした。", en: "I didn't know that." },
+            { ja: "なるほど。", en: "That makes sense." },
+            { ja: "その通りです。", en: "Exactly." },
+            { ja: "どう思いますか？", en: "What do you think?" },
+            { ja: "私もそう思います。", en: "I think so too." },
+            { ja: "私はそう思いません。", en: "I don't think so." },
+            { ja: "お先にどうぞ。", en: "After you." },
+            { ja: "気をつけて帰ってください。", en: "Get home safely." },
+            { ja: "楽しんでください。", en: "Have fun." },
+            { ja: "準備はいいですか？", en: "Are you ready?" },
+            { ja: "確認させてください。", en: "Let me check." },
+            { ja: "例えばどういうことですか？", en: "For example?" },
+            { ja: "それだけです。", en: "That's all." },
+            { ja: "ところで。", en: "By the way." },
+            { ja: "今のところ順調です。", en: "So far so good." },
+            { ja: "運が悪かったです。", en: "It was bad luck." },
+            { ja: "それはラッキーでしたね。", en: "That was lucky." },
+            { ja: "信じられません。", en: "I can't believe it." },
+            { ja: "驚きました。", en: "I'm surprised." },
+            { ja: "緊張しています。", en: "I'm nervous." },
+            { ja: "興奮しています。", en: "I'm excited." },
+            { ja: "がっかりしました。", en: "I'm disappointed." },
+            { ja: "疲れました。", en: "I'm tired." },
+            { ja: "眠いです。", en: "I'm sleepy." },
+            { ja: "お腹が空きました。", en: "I'm hungry." },
+            { ja: "喉が渇きました。", en: "I'm thirsty." },
+            { ja: "お手洗いを借りてもいいですか？", en: "May I use the restroom?" },
+            { ja: "手を洗いたいのですが。", en: "I'd like to wash my hands." },
+            { ja: "ティッシュを持っていますか？", en: "Do you have a tissue?" },
+            { ja: "ゴミ箱はどこですか？", en: "Where is the trash can?" },
+            { ja: "これはリサイクルできますか？", en: "Can this be recycled?" },
+            { ja: "喫煙席はありますか？", en: "Is there a smoking section?" },
+            { ja: "灰皿はありますか？", en: "Do you have an ashtray?" },
+            { ja: "ここでは靴を脱いでください。", en: "Please take off your shoes here." },
+            { ja: "スリッパを履いてください。", en: "Please put on slippers." },
+            { ja: "傘を貸してもらえますか？", en: "Could I borrow an umbrella?" },
+            { ja: "雨が止みました。", en: "The rain has stopped." },
+            { ja: "晴れてきました。", en: "It's clearing up." },
+            { ja: "今日は暑くなりそうです。", en: "It's going to be hot today." },
+            { ja: "風が強いです。", en: "It's windy." },
+            { ja: "湿気が多いです。", en: "It's humid." },
+            { ja: "乾燥しています。", en: "It's dry." },
+            { ja: "日没は何時ですか？", en: "What time is sunset?" },
+            { ja: "日の出は何時ですか？", en: "What time is sunrise?" },
+            { ja: "星が綺麗ですね。", en: "The stars are beautiful." },
+            { ja: "月が出ています。", en: "The moon is out." },
+            { ja: "道に迷ってしまったようです。", en: "I seem to have lost my way." },
+            { ja: "この地図で現在地を教えてください。", en: "Please show me where we are on this map." },
+            { ja: "北はどっちですか？", en: "Which way is north?" },
+            { ja: "反対方向ですか？", en: "Is it the opposite direction?" },
+            { ja: "この道をまっすぐですか？", en: "Is it straight down this road?" },
+            { ja: "信号を渡ってください。", en: "Cross at the traffic light." },
+            { ja: "橋を渡ってください。", en: "Cross the bridge." },
+            { ja: "トンネルを抜けてください。", en: "Go through the tunnel." },
+            { ja: "階段を上がってください。", en: "Go up the stairs." },
+            { ja: "エレベーターを使ってください。", en: "Use the elevator." },
+            { ja: "突き当たりを右です。", en: "Turn right at the end of the street." },
+            { ja: "銀行の隣です。", en: "It's next to the bank." },
+            { ja: "ホテルの向かいです。", en: "It's across from the hotel." },
+            { ja: "駅の近くです。", en: "It's near the station." },
+            { ja: "徒歩5分くらいです。", en: "It's about a 5-minute walk." },
+            { ja: "車で10分くらいです。", en: "It's about a 10-minute drive." },
+            { ja: "遠すぎます。", en: "It's too far." },
+            { ja: "タクシーを使った方がいいですよ。", en: "You should take a taxi." },
+            { ja: "バスの方が安いです。", en: "The bus is cheaper." }
+        ];
+
+        // --- App State ---
+        let currentPart = localStorage.getItem('currentPart') || 'part1';
+        let phrases = [];
+        let currentIndex = 0;
+        let isPlaying = false;
+        let wakeLock = null;
+
+        // --- Init & Load ---
+        function loadPhrases(part) {
+            currentPart = part;
+            localStorage.setItem('currentPart', currentPart);
             
-            utter.onend = () => resolve();
-            utter.onerror = (e) => {
-                console.warn("Speech playback error:", e);
-                resolve();
-            };
-            try { this.synth.speak(utter); } catch (e) { resolve(); }
-        });
-    }
-
-    wait(ms) {
-        return new Promise(resolve => {
-            this.loopTimeout = setTimeout(resolve, ms);
-        });
-    }
-
-    listenForAnswer(currentItem) {
-        return new Promise((resolve) => {
-            this.ui.micStatus.innerHTML = '<i class="fas fa-microphone text-rose-500"></i> <span class="font-bold text-rose-600">Listen...</span>';
-            this.ui.micStatus.classList.remove('text-slate-500');
-            this.ui.micStatus.classList.add('bg-rose-100', 'border-rose-200', 'pulse-mic');
+            // UI Update
+            document.getElementById('partSelector').value = currentPart;
+            document.getElementById('courseNameDisplay').innerText = (currentPart === 'part1') ? 'Part 1' : 'Part 2';
             
-            let answered = false;
-            try { this.recognition.start(); } catch(e) {}
-
-            const finish = (isCorrect) => {
-                answered = true;
-                this.cleanupRecognition(null, null, null); // handlers cleared inside
-                if(isCorrect) this.handleCorrect();
-                else this.handleWrong(currentItem);
-                resolve();
-            }
-
-            const resultHandler = (event) => finish(true);
-            const errorHandler = (e) => console.warn("Recog error", e);
-
-            this.recognition.onresult = resultHandler;
-            this.recognition.onerror = errorHandler;
-
-            // Timeout 2s
-            this.loopTimeout = setTimeout(() => {
-                try { this.recognition.stop(); } catch(e){}
-                if (!answered) finish(false);
-            }, 2000);
-        });
-    }
-
-    cleanupRecognition(resFn, endFn, errFn) {
-        if(!this.recognition) return;
-        this.recognition.onresult = null;
-        this.recognition.onend = null;
-        this.recognition.onerror = null;
-    }
-
-    handleCorrect() {
-        this.showFeedback(true);
-        setTimeout(() => this.next(), 1200);
-    }
-
-    handleWrong(item) {
-        this.showFeedback(false);
-        if (!this.wrongPhrases.some(p => p.en === item.en)) {
-            this.wrongPhrases.push(item);
-            localStorage.setItem('wrongPhrases', JSON.stringify(this.wrongPhrases));
-            this.updateWrongCount();
-        }
-        setTimeout(() => this.next(), 1200);
-    }
-
-    showFeedback(isCorrect) {
-        this.ui.micStatus.classList.remove('pulse-mic', 'bg-rose-100', 'border-rose-200');
-        this.ui.micStatus.classList.add('text-slate-500');
-        this.ui.micStatus.innerHTML = isCorrect 
-            ? '<i class="fas fa-check text-emerald-500"></i> OK!' 
-            : '<i class="fas fa-times text-rose-500"></i> Time Up';
-        
-        this.ui.resultOverlay.classList.remove('hidden');
-        
-        // Icon change
-        const icon = this.ui.resultIcon;
-        if(isCorrect) {
-            icon.className = "fas fa-check-circle text-8xl text-emerald-400 drop-shadow-xl animate-bounce";
-        } else {
-            icon.className = "fas fa-times-circle text-8xl text-rose-400 drop-shadow-xl";
+            // Raw data selection
+            const rawData = (currentPart === 'part1') ? rawPhrasesPart1 : rawPhrasesPart2;
+            
+            // Reset to raw data (since we don't track progress anymore)
+            phrases = rawData.map((p, i) => ({ ...p, id: i }));
+            
+            stopLearning();
+            currentIndex = 0;
+            updateStats();
+            updateUI(phrases[0]);
         }
 
-        // Pop Animation
-        setTimeout(() => {
-            this.ui.resultIconContainer.classList.remove('scale-0');
-            this.ui.resultIconContainer.classList.add('scale-100');
-        }, 50);
-    }
+        function changePart() {
+            const val = document.getElementById('partSelector').value;
+            loadPhrases(val);
+        }
 
-    next() {
-        this.currentIndex++;
-        this.loopSequence();
-    }
+        // --- Core Functions ---
 
-    async requestWakeLock() {
-        if ('wakeLock' in navigator) {
-            try { this.wakeLock = await navigator.wakeLock.request('screen'); }
-            catch (err) { console.warn("Wake Lock fail:", err); }
-        }
-    }
-
-    // UI Helpers
-    activateLockMode() {
-        document.getElementById('lockOverlay').style.display = 'flex';
-    }
-    deactivateLockMode() {
-        document.getElementById('lockOverlay').style.display = 'none';
-    }
-    toggleReviewMode() {
-        document.getElementById('reviewScreen').classList.remove('translate-x-full');
-        this.renderReviewList();
-    }
-    closeReviewMode() {
-        document.getElementById('reviewScreen').classList.add('translate-x-full');
-    }
-    renderReviewList() {
-        const list = document.getElementById('reviewList');
-        list.innerHTML = '';
-        if (this.wrongPhrases.length === 0) {
-            list.innerHTML = `
-                <div class="flex flex-col items-center justify-center h-48 text-slate-300">
-                    <i class="fas fa-trophy text-6xl mb-4 text-yellow-300 drop-shadow-sm"></i>
-                    <p class="font-bold">Perfect!</p>
-                    <p class="text-xs">復習リストは空です</p>
-                </div>`;
-            return;
-        }
-        this.wrongPhrases.forEach((item) => {
-            const div = document.createElement('div');
-            div.className = 'bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-1 relative overflow-hidden';
-            div.innerHTML = `
-                <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-400"></div>
-                <div class="font-bold text-slate-700 pl-2">${item.jp}</div>
-                <div class="text-blue-500 font-bold text-sm pl-2 font-fredoka">${item.en}</div>
-            `;
-            list.appendChild(div);
-        });
-    }
-    startReview() {
-        if (this.wrongPhrases.length === 0) {
-            alert("復習する項目がありません");
-            return;
-        }
-        this.isReviewMode = true;
-        this.currentIndex = 0;
-        this.ui.modeBadge.textContent = "復習モード";
-        this.ui.modeBadge.className = "text-[10px] font-bold px-3 py-1 rounded-full bg-rose-500 text-white shadow-sm";
-        this.closeReviewMode();
-        this.play();
-    }
-    clearWrongData() {
-        if(confirm('復習リストをリセットしますか？')) {
-            this.wrongPhrases = [];
-            localStorage.removeItem('wrongPhrases');
-            this.updateWrongCount();
-            this.renderReviewList();
-            if(this.isReviewMode) {
-                this.stop();
-                this.isReviewMode = false;
-                this.ui.modeBadge.textContent = "通常モード";
-                this.ui.modeBadge.className = "text-[10px] font-bold px-3 py-1 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 text-white shadow-sm";
-            }
-        }
-    }
-    updateWrongCount() {
-        const count = this.wrongPhrases.length;
-        this.ui.wrongCount.textContent = count;
-        if(count > 0) this.ui.reviewBtn.classList.remove('hidden');
-        else this.ui.reviewBtn.classList.add('hidden');
-    }
-    openSettings() {
-        const modal = document.getElementById('settingsModal');
-        const content = document.getElementById('settingsContent');
-        modal.classList.remove('hidden');
-        // Animation frame
-        requestAnimationFrame(() => {
-            modal.classList.remove('opacity-0');
-            content.classList.remove('scale-95');
-        });
-    }
-    closeSettings() {
-        const modal = document.getElementById('settingsModal');
-        const content = document.getElementById('settingsContent');
-        modal.classList.add('opacity-0');
-        content.classList.add('scale-95');
-        setTimeout(() => modal.classList.add('hidden'), 300);
-    }
-    setWaitTime(ms) {
-        this.settings.waitTime = ms;
-        document.querySelectorAll('.wait-btn').forEach(btn => {
-            if(parseInt(btn.dataset.val) === ms) {
-                btn.className = "wait-btn flex-1 py-3 rounded-xl text-sm font-bold transition-all bg-gradient-to-r from-blue-400 to-blue-500 text-white shadow-lg transform scale-105";
+        async function togglePlay() {
+            const btn = document.getElementById('toggleBtn');
+            if (isPlaying) {
+                stopLearning();
+                btn.innerHTML = '<i class="fas fa-play mr-2"></i>再生スタート';
+                btn.classList.replace('bg-red-600', 'bg-blue-600');
+                btn.classList.replace('hover:bg-red-500', 'hover:bg-blue-500');
             } else {
-                btn.className = "wait-btn flex-1 py-3 rounded-xl text-sm font-bold transition-all bg-white text-slate-400 hover:bg-slate-50";
+                await requestWakeLock();
+                startLearning();
+                btn.innerHTML = '<i class="fas fa-stop mr-2"></i>停止';
+                btn.classList.replace('bg-blue-600', 'bg-red-600');
+                btn.classList.replace('hover:bg-blue-500', 'hover:bg-red-500');
             }
-        });
-    }
-}
+        }
 
-const app = new LearningApp();
-</script>
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    document.getElementById('wakeLockStatus').classList.replace('wake-lock-inactive', 'wake-lock-active');
+                    document.getElementById('wakeLockStatus').innerHTML = '<i class="fas fa-lightbulb mr-1"></i>画面維持: ON';
+                }
+            } catch (err) {
+                console.log(`Wake Lock Error: ${err.name}, ${err.message}`);
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release()
+                    .then(() => {
+                        wakeLock = null;
+                        document.getElementById('wakeLockStatus').classList.replace('wake-lock-active', 'wake-lock-inactive');
+                        document.getElementById('wakeLockStatus').innerHTML = '<i class="fas fa-lightbulb mr-1"></i>画面維持: OFF';
+                    });
+            }
+        }
+
+        function toggleCurtain(show) {
+            const curtain = document.getElementById('curtain');
+            if (show) {
+                curtain.classList.remove('hidden');
+                requestWakeLock();
+            } else {
+                curtain.classList.add('hidden');
+            }
+        }
+
+        function startLearning() {
+            isPlaying = true;
+            playLoop();
+        }
+
+        function stopLearning() {
+            isPlaying = false;
+            window.speechSynthesis.cancel();
+            releaseWakeLock();
+        }
+
+        async function playLoop() {
+            if (!isPlaying) return;
+            if (currentIndex >= phrases.length) {
+                currentIndex = 0; 
+            }
+
+            const currentPhrase = phrases[currentIndex];
+            updateUI(currentPhrase);
+            updateStats();
+
+            // 1. Japanese
+            await speak(currentPhrase.ja, 'ja-JP');
+            if (!isPlaying) return;
+
+            // 2. Wait 2s
+            await new Promise(r => setTimeout(r, 2000));
+            if (!isPlaying) return;
+
+            // 3. English
+            revealEnglish();
+            await speak(currentPhrase.en, 'en-US');
+            if (!isPlaying) return;
+
+            // 4. Wait 2s
+            await new Promise(r => setTimeout(r, 2000));
+            if (!isPlaying) return;
+
+            // 5. Next
+            currentIndex++;
+            playLoop();
+        }
+
+        // Improved Speak Function for better quality
+        function speak(text, lang, rate = 1.0) {
+            return new Promise((resolve) => {
+                const uttr = new SpeechSynthesisUtterance(text);
+                uttr.lang = lang;
+                uttr.rate = rate; // Speed
+                
+                // Audio Quality Improvement: Try to find Google voices
+                const voices = window.speechSynthesis.getVoices();
+                // 1. Try to find "Google" + correct lang (High Quality usually)
+                let voice = voices.find(v => v.name.includes('Google') && v.lang.includes(lang.replace('_', '-')));
+                
+                // 2. Fallback to any voice with correct lang
+                if (!voice) {
+                     voice = voices.find(v => v.lang.includes(lang.replace('_', '-')));
+                }
+                
+                if(voice) {
+                    uttr.voice = voice;
+                    // console.log("Using voice:", voice.name);
+                }
+
+                uttr.onend = resolve;
+                uttr.onerror = resolve; 
+                window.speechSynthesis.speak(uttr);
+            });
+        }
+
+        function skip(direction) {
+            stopLearning();
+            document.getElementById('toggleBtn').innerHTML = '<i class="fas fa-play mr-2"></i>再生スタート';
+            document.getElementById('toggleBtn').classList.replace('bg-red-600', 'bg-blue-600');
+            document.getElementById('toggleBtn').classList.replace('hover:bg-red-500', 'hover:bg-blue-500');
+
+            currentIndex += direction;
+            if (currentIndex < 0) currentIndex = phrases.length - 1;
+            if (currentIndex >= phrases.length) currentIndex = 0;
+            
+            updateUI(phrases[currentIndex]);
+            updateStats();
+        }
+
+        function updateUI(phrase) {
+            if(!phrase) return;
+            document.getElementById('japaneseText').innerText = phrase.ja;
+            document.getElementById('englishText').innerText = phrase.en;
+            document.getElementById('englishArea').classList.remove('opacity-100');
+            document.getElementById('englishArea').classList.add('opacity-0');
+        }
+
+        function revealEnglish() {
+            document.getElementById('englishArea').classList.remove('opacity-0');
+            document.getElementById('englishArea').classList.add('opacity-100');
+        }
+
+        function updateStats() {
+            document.getElementById('currentIndex').innerText = currentIndex + 1;
+            document.getElementById('totalCount').innerText = phrases.length;
+            const pct = ((currentIndex) / phrases.length) * 100;
+            document.getElementById('progressBar').style.width = `${pct}%`;
+        }
+
+        // --- Init ---
+        // Ensure voices are loaded
+        window.speechSynthesis.getVoices();
+        window.speechSynthesis.onvoiceschanged = () => {
+            window.speechSynthesis.getVoices();
+        };
+
+        // Initialize with saved part or default
+        loadPhrases(currentPart);
+
+    </script>
 </body>
 </html>
